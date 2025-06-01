@@ -9,7 +9,110 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      audio_recordings: {
+        Row: {
+          consultation_id: string | null
+          created_at: string
+          duration: number | null
+          file_path: string | null
+          file_size: number | null
+          id: string
+          mime_type: string | null
+        }
+        Insert: {
+          consultation_id?: string | null
+          created_at?: string
+          duration?: number | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+        }
+        Update: {
+          consultation_id?: string | null
+          created_at?: string
+          duration?: number | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_recordings_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultations: {
+        Row: {
+          alergias: Json | null
+          comorbidades: Json | null
+          complemento_evolucao: string | null
+          conduta: string | null
+          consultation_type: string
+          created_at: string
+          exame_fisico: Json | null
+          exames_complementares: string | null
+          hda: string | null
+          hipotese_diagnostica: string | null
+          id: string
+          medicacoes: Json | null
+          patient_name: string
+          protocols: Json | null
+          reavaliacao_medica: string | null
+          recording_duration: number | null
+          sinais_vitais: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alergias?: Json | null
+          comorbidades?: Json | null
+          complemento_evolucao?: string | null
+          conduta?: string | null
+          consultation_type: string
+          created_at?: string
+          exame_fisico?: Json | null
+          exames_complementares?: string | null
+          hda?: string | null
+          hipotese_diagnostica?: string | null
+          id?: string
+          medicacoes?: Json | null
+          patient_name: string
+          protocols?: Json | null
+          reavaliacao_medica?: string | null
+          recording_duration?: number | null
+          sinais_vitais?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alergias?: Json | null
+          comorbidades?: Json | null
+          complemento_evolucao?: string | null
+          conduta?: string | null
+          consultation_type?: string
+          created_at?: string
+          exame_fisico?: Json | null
+          exames_complementares?: string | null
+          hda?: string | null
+          hipotese_diagnostica?: string | null
+          id?: string
+          medicacoes?: Json | null
+          patient_name?: string
+          protocols?: Json | null
+          reavaliacao_medica?: string | null
+          recording_duration?: number | null
+          sinais_vitais?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

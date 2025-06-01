@@ -3,37 +3,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, CheckCircle, FileText } from "lucide-react";
+import { Plus, Clock, CheckCircle, FileText, Loader2 } from "lucide-react";
 import { ConsultationForm } from "@/components/ConsultationForm";
 import { ReviewInterface } from "@/components/ReviewInterface";
-
-interface Consultation {
-  id: string;
-  patientName: string;
-  date: Date;
-  status: 'in-progress' | 'pending-review' | 'completed';
-  consultationType?: string;
-}
+import { useConsultations } from "@/hooks/useConsultations";
+import { consultationService } from "@/services/consultationService";
+import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'dashboard' | 'consultation' | 'review'>('dashboard');
-  const [consultations, setConsultations] = useState<Consultation[]>([
-    {
-      id: '1',
-      patientName: 'Maria Silva',
-      date: new Date('2024-06-01T09:30:00'),
-      status: 'pending-review',
-      consultationType: 'Avaliação médica'
-    },
-    {
-      id: '2',
-      patientName: 'João Santos',
-      date: new Date('2024-06-01T10:15:00'),
-      status: 'completed',
-      consultationType: 'Reavaliação médica'
-    }
-  ]);
   const [selectedConsultation, setSelectedConsultation] = useState<string | null>(null);
+  const { consultations, loading, updateConsultationStatus, addConsultation } = useConsultations();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -83,21 +63,33 @@ const Index = () => {
     setActiveView('review');
   };
 
-  const handleConsultationComplete = (consultationData: any) => {
-    // Aqui seria enviado para o webhook
-    console.log('Consulta finalizada:', consultationData);
-    
-    // Simular adição da consulta
-    const newConsultation: Consultation = {
-      id: Date.now().toString(),
-      patientName: 'Novo Paciente',
-      date: new Date(),
-      status: 'pending-review',
-      consultationType: consultationData.consultationType || 'Avaliação médica'
-    };
-    
-    setConsultations(prev => [newConsultation, ...prev]);
-    setActiveView('dashboard');
+  const handleConsultationComplete = async (consultationData: any) => {
+    try {
+      const savedConsultation = await consultationService.createConsultation(
+        consultationData,
+        consultationData.recordingDuration || 0
+      );
+
+      // Save audio if available
+      if (consultationData.audioBlob) {
+        await consultationService.saveAudioRecording(savedConsultation.id, consultationData.audioBlob);
+      }
+
+      addConsultation(savedConsultation);
+      setActiveView('dashboard');
+
+      toast({
+        title: "Consulta salva",
+        description: "A consulta foi salva com sucesso no banco de dados.",
+      });
+    } catch (error) {
+      console.error('Error saving consultation:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar a consulta. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (activeView === 'consultation') {
@@ -118,14 +110,7 @@ const Index = () => {
           consultationId={selectedConsultation}
           onBack={() => setActiveView('dashboard')}
           onComplete={() => {
-            // Atualizar status da consulta para completed
-            setConsultations(prev => 
-              prev.map(c => 
-                c.id === selectedConsultation 
-                  ? { ...c, status: 'completed' }
-                  : c
-              )
-            );
+            updateConsultationStatus(selectedConsultation, 'completed');
             setActiveView('dashboard');
           }}
         />
@@ -161,7 +146,9 @@ const Index = () => {
               <CardTitle className="text-sm font-medium text-gray-600">Total de Consultas</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">{consultations.length}</div>
+              <div className="text-3xl font-bold text-gray-900">
+                {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : consultations.length}
+              </div>
             </CardContent>
           </Card>
           
@@ -171,7 +158,7 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-yellow-600">
-                {consultations.filter(c => c.status === 'pending-review').length}
+                {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : consultations.filter(c => c.status === 'pending-review').length}
               </div>
             </CardContent>
           </Card>
@@ -182,7 +169,7 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">
-                {consultations.filter(c => c.status === 'completed').length}
+                {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : consultations.filter(c => c.status === 'completed').length}
               </div>
             </CardContent>
           </Card>
@@ -195,7 +182,11 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {consultations.length === 0 ? (
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                </div>
+              ) : consultations.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Nenhuma consulta encontrada</p>
@@ -210,14 +201,14 @@ const Index = () => {
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-600 font-semibold">
-                          {consultation.patientName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          {consultation.patient_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </span>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{consultation.patientName}</h3>
-                        <p className="text-sm text-gray-600">{consultation.consultationType}</p>
+                        <h3 className="font-semibold text-gray-900">{consultation.patient_name}</h3>
+                        <p className="text-sm text-gray-600">{consultation.consultation_type}</p>
                         <p className="text-xs text-gray-500">
-                          {consultation.date.toLocaleDateString('pt-BR')} às {consultation.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(consultation.created_at).toLocaleDateString('pt-BR')} às {new Date(consultation.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                     </div>
