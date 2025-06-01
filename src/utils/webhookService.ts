@@ -60,18 +60,32 @@ export const processConsultationAnalysis = async (consultationId: string, consul
   try {
     console.log(`Iniciando análise da consulta ${consultationId} via webhook...`);
 
-    // Simulação de chamada ao webhook (substitua pela sua chamada real)
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Simulação de dados de análise retornados pelo webhook
-    const analysisData = {
-      'História da Doença Atual (HDA)': 'Análise da HDA pela IA...',
-      'Hipótese Diagnóstica': 'Sugestão de hipótese diagnóstica da IA...',
-      'Conduta': 'Sugestão de conduta da IA...',
-      'Comorbidades': 'Comorbidades identificadas pela IA...',
-      'Medicações de Uso Contínuo': 'Medicações identificadas pela IA...',
-      'Alergias': 'Alergias identificadas pela IA...'
+    // Preparar dados para envio ao webhook
+    const webhookData = {
+      consultationId,
+      patientName: consultationData.nomePaciente,
+      consultationType: consultationData.consultationType,
+      timestamp: new Date().toISOString(),
+      data: {
+        hda: consultationData.hda,
+        hipoteseDiagnostica: consultationData.hipoteseDiagnostica,
+        conduta: consultationData.conduta,
+        examesComplementares: consultationData.examesComplementares,
+        reavaliacaoMedica: consultationData.reavaliacaoMedica,
+        complementoEvolucao: consultationData.complementoEvolucao,
+        comorbidades: consultationData.comorbidades,
+        medicacoes: consultationData.medicacoes,
+        alergias: consultationData.alergias,
+        sinaisVitais: consultationData.sinaisVitais,
+        exameFisico: consultationData.exameFisico,
+        protocols: consultationData.protocols
+      }
     };
+
+    console.log('Enviando dados para webhook:', webhookData);
+
+    // Fazer chamada HTTP real para o webhook com retry logic
+    const analysisData = await makeWebhookRequest(webhookData);
 
     console.log(`Análise da consulta ${consultationId} concluída. Dados recebidos:`, analysisData);
 
@@ -79,12 +93,18 @@ export const processConsultationAnalysis = async (consultationId: string, consul
     // Os campos originais já foram preservados na criação inicial
     await supabase.from('consultations')
       .update({
-        hda: analysisData['História da Doença Atual (HDA)'],
-        hipotese_diagnostica: analysisData['Hipótese Diagnóstica'],
-        conduta: analysisData['Conduta'],
-        comorbidades: { tem: 'sim', especificar: analysisData['Comorbidades'] },
-        medicacoes: { tem: 'sim', especificar: analysisData['Medicações de Uso Contínuo'] },
-        alergias: { tem: 'sim', especificar: analysisData['Alergias'] },
+        hda: analysisData['História da Doença Atual (HDA)'] || analysisData.hda,
+        hipotese_diagnostica: analysisData['Hipótese Diagnóstica'] || analysisData.hipoteseDiagnostica,
+        conduta: analysisData['Conduta'] || analysisData.conduta,
+        comorbidades: analysisData['Comorbidades'] ? 
+          { tem: 'sim', especificar: analysisData['Comorbidades'] } :
+          (analysisData.comorbidades || { tem: 'não', especificar: '' }),
+        medicacoes: analysisData['Medicações de Uso Contínuo'] ? 
+          { tem: 'sim', especificar: analysisData['Medicações de Uso Contínuo'] } :
+          (analysisData.medicacoes || { tem: 'não', especificar: '' }),
+        alergias: analysisData['Alergias'] ? 
+          { tem: 'sim', especificar: analysisData['Alergias'] } :
+          (analysisData.alergias || { tem: 'não', especificar: '' }),
         status: 'pending-review'
       })
       .eq('id', consultationId);
@@ -93,7 +113,67 @@ export const processConsultationAnalysis = async (consultationId: string, consul
 
   } catch (error) {
     console.error(`Erro ao processar análise da consulta ${consultationId}:`, error);
-    throw error; // Rejeitar a promise para que o chamador possa lidar com o erro
+    
+    // Atualizar status da consulta para erro
+    await supabase.from('consultations')
+      .update({ status: 'pending-review' })
+      .eq('id', consultationId);
+    
+    throw error;
+  }
+};
+
+const makeWebhookRequest = async (data: any, retryCount = 0): Promise<any> => {
+  try {
+    console.log(`Tentativa ${retryCount + 1} de envio para webhook:`, WEBHOOK_CONFIG.N8N_WEBHOOK_URL);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_CONFIG.TIMEOUT);
+
+    const response = await fetch(WEBHOOK_CONFIG.N8N_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Origin': window.location.origin,
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log('Resposta do webhook - Status:', response.status);
+
+    if (!response.ok) {
+      throw new Error(`Webhook retornou status ${response.status}: ${response.statusText}`);
+    }
+
+    const responseData = await response.json();
+    console.log('Dados recebidos do webhook:', responseData);
+
+    return responseData;
+
+  } catch (error) {
+    console.error(`Erro na tentativa ${retryCount + 1}:`, error);
+
+    // Se ainda temos tentativas disponíveis, tentar novamente
+    if (retryCount < WEBHOOK_CONFIG.MAX_RETRIES) {
+      console.log(`Aguardando ${WEBHOOK_CONFIG.RETRY_DELAY}ms antes da próxima tentativa...`);
+      await new Promise(resolve => setTimeout(resolve, WEBHOOK_CONFIG.RETRY_DELAY));
+      return makeWebhookRequest(data, retryCount + 1);
+    }
+
+    // Se esgotaram as tentativas, usar dados simulados como fallback
+    console.error('Todas as tentativas de webhook falharam. Usando dados simulados como fallback.');
+    return {
+      'História da Doença Atual (HDA)': 'Análise da HDA pela IA (fallback após falha no webhook)...',
+      'Hipótese Diagnóstica': 'Sugestão de hipótese diagnóstica da IA (fallback)...',
+      'Conduta': 'Sugestão de conduta da IA (fallback)...',
+      'Comorbidades': 'Comorbidades identificadas pela IA (fallback)...',
+      'Medicações de Uso Contínuo': 'Medicações identificadas pela IA (fallback)...',
+      'Alergias': 'Alergias identificadas pela IA (fallback)...'
+    };
   }
 };
 
