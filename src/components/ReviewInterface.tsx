@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Check, Edit, Bot, User } from "lucide-react";
+import { ArrowLeft, FileText, Check, Edit, Bot, User, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { consultationService, ConsultationRecord } from "@/services/consultationService";
+import { generateFinalDocument } from "@/utils/webhookService";
 
 interface ReviewInterfaceProps {
   consultationId: string;
@@ -12,65 +14,135 @@ interface ReviewInterfaceProps {
   onComplete: () => void;
 }
 
-export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewInterfaceProps) => {
-  // Mock data - in real app this would come from API
-  const [reviewData, setReviewData] = useState({
-    hda: {
-      doctor: "Paciente de 45 anos, sexo masculino, com quadro de dor abdominal há 3 dias.",
-      ai: "Paciente masculino, 45 anos, apresenta dor abdominal em região epigástrica há 3 dias, de início gradual, intensidade 7/10, piora com alimentação, associada a náuseas e vômitos. Nega febre, alterações urinárias ou intestinais.",
-      selected: "ai"
-    },
-    comorbidades: {
-      doctor: "Diabetes mellitus tipo 2, hipertensão arterial",
-      ai: "Diabetes mellitus tipo 2 há 10 anos em uso de metformina, hipertensão arterial sistêmica há 5 anos em uso de losartana 50mg/dia, com bom controle pressórico.",
-      selected: "ai"
-    },
-    medicacoes: {
-      doctor: "Metformina 850mg 2x/dia, Losartana 50mg 1x/dia",
-      ai: "Metformina 850mg via oral 2 vezes ao dia, Losartana 50mg via oral 1 vez ao dia pela manhã.",
-      selected: "doctor"
-    },
-    alergias: {
-      doctor: "Nega alergias medicamentosas",
-      ai: "Paciente nega alergias medicamentosas conhecidas ou reações adversas a medicamentos.",
-      selected: "ai"
-    },
-    hipoteseDiagnostica: {
-      doctor: "Dispepsia funcional",
-      ai: "Hipótese de dispepsia funcional versus gastrite. Considerar investigação para H. pylori e avaliação endoscópica se não houver melhora com tratamento inicial.",
-      selected: "ai"
-    },
-    conduta: {
-      doctor: "Prescrevo omeprazol 40mg 1x/dia por 4 semanas. Orientações dietéticas.",
-      ai: "Prescrevo omeprazol 40mg via oral 1 vez ao dia em jejum por 4 semanas. Orientações dietéticas: evitar alimentos gordurosos, condimentados, café e álcool. Retorno em 2 semanas para reavaliação ou antes se persistirem os sintomas. Orientados sinais de alarme: febre, vômitos persistentes, dor abdominal intensa.",
-      selected: "ai"
-    }
-  });
+interface ReviewFieldData {
+  doctor: string;
+  ai: string;
+  selected: 'doctor' | 'ai';
+}
 
+interface ReviewData {
+  hda: ReviewFieldData;
+  comorbidades: ReviewFieldData;
+  medicacoes: ReviewFieldData;
+  alergias: ReviewFieldData;
+  hipoteseDiagnostica: ReviewFieldData;
+  conduta: ReviewFieldData;
+}
+
+export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewInterfaceProps) => {
+  const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+  const [consultation, setConsultation] = useState<ConsultationRecord | null>(null);
+  const [loading, setLoading] = useState(true);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [generatingDocument, setGeneratingDocument] = useState(false);
+
+  useEffect(() => {
+    loadConsultationData();
+  }, [consultationId]);
+
+  const loadConsultationData = async () => {
+    try {
+      setLoading(true);
+      const consultationData = await consultationService.getConsultationById(consultationId);
+      
+      if (!consultationData) {
+        toast({
+          title: "Erro",
+          description: "Consulta não encontrada.",
+          variant: "destructive",
+        });
+        onBack();
+        return;
+      }
+
+      setConsultation(consultationData);
+
+      // Mapear dados originais do médico e sugestões da IA
+      const mappedData: ReviewData = {
+        hda: {
+          doctor: consultationData.hda || '',
+          ai: consultationData.hda || '', // Se não houver análise da IA, usar dados originais
+          selected: 'doctor'
+        },
+        comorbidades: {
+          doctor: typeof consultationData.comorbidades === 'object' 
+            ? consultationData.comorbidades?.especificar || '' 
+            : consultationData.comorbidades || '',
+          ai: typeof consultationData.comorbidades === 'object' 
+            ? consultationData.comorbidades?.especificar || ''
+            : consultationData.comorbidades || '',
+          selected: 'doctor'
+        },
+        medicacoes: {
+          doctor: typeof consultationData.medicacoes === 'object' 
+            ? consultationData.medicacoes?.especificar || ''
+            : consultationData.medicacoes || '',
+          ai: typeof consultationData.medicacoes === 'object' 
+            ? consultationData.medicacoes?.especificar || ''
+            : consultationData.medicacoes || '',
+          selected: 'doctor'
+        },
+        alergias: {
+          doctor: typeof consultationData.alergias === 'object' 
+            ? consultationData.alergias?.especificar || ''
+            : consultationData.alergias || '',
+          ai: typeof consultationData.alergias === 'object' 
+            ? consultationData.alergias?.especificar || ''
+            : consultationData.alergias || '',
+          selected: 'doctor'
+        },
+        hipoteseDiagnostica: {
+          doctor: consultationData.hipotese_diagnostica || '',
+          ai: consultationData.hipotese_diagnostica || '',
+          selected: 'doctor'
+        },
+        conduta: {
+          doctor: consultationData.conduta || '',
+          ai: consultationData.conduta || '',
+          selected: 'doctor'
+        }
+      };
+
+      setReviewData(mappedData);
+    } catch (error) {
+      console.error('Error loading consultation:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados da consulta.",
+        variant: "destructive",
+      });
+      onBack();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFieldSelect = (field: string, source: 'doctor' | 'ai') => {
+    if (!reviewData) return;
+    
     setReviewData(prev => ({
-      ...prev,
-      [field]: { ...prev[field as keyof typeof prev], selected: source }
+      ...prev!,
+      [field]: { ...prev![field as keyof ReviewData], selected: source }
     }));
   };
 
   const handleEdit = (field: string, source: 'doctor' | 'ai') => {
-    const currentText = reviewData[field as keyof typeof reviewData][source];
+    if (!reviewData) return;
+    
+    const currentText = reviewData[field as keyof ReviewData][source];
     setEditingText(currentText);
     setEditingField(`${field}-${source}`);
   };
 
   const handleSaveEdit = () => {
-    if (!editingField) return;
+    if (!editingField || !reviewData) return;
     
     const [field, source] = editingField.split('-');
     setReviewData(prev => ({
-      ...prev,
+      ...prev!,
       [field]: { 
-        ...prev[field as keyof typeof prev], 
+        ...prev![field as keyof ReviewData], 
         [source]: editingText,
         selected: source as 'doctor' | 'ai'
       }
@@ -80,28 +152,67 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
     setEditingText("");
   };
 
-  const handleGenerateDocument = () => {
-    // Prepare final data for second webhook
-    const finalData = {
-      consultationId,
-      reviewedData: reviewData,
-      timestamp: new Date().toISOString()
-    };
+  const handleGenerateDocument = async () => {
+    if (!reviewData || !consultation) return;
 
-    console.log('Sending to document generation webhook:', finalData);
-    
-    toast({
-      title: "Documento sendo gerado",
-      description: "O documento final está sendo criado. Você será notificado quando estiver pronto.",
-    });
+    try {
+      setGeneratingDocument(true);
 
-    onComplete();
+      // Preparar dados finais para o webhook de geração do documento
+      const finalData = {
+        consultationId,
+        patientName: consultation.patient_name,
+        consultationType: consultation.consultation_type,
+        reviewedData: {
+          hda: reviewData.hda.selected === 'doctor' ? reviewData.hda.doctor : reviewData.hda.ai,
+          comorbidades: reviewData.comorbidades.selected === 'doctor' ? reviewData.comorbidades.doctor : reviewData.comorbidades.ai,
+          medicacoes: reviewData.medicacoes.selected === 'doctor' ? reviewData.medicacoes.doctor : reviewData.medicacoes.ai,
+          alergias: reviewData.alergias.selected === 'doctor' ? reviewData.alergias.doctor : reviewData.alergias.ai,
+          hipoteseDiagnostica: reviewData.hipoteseDiagnostica.selected === 'doctor' ? reviewData.hipoteseDiagnostica.doctor : reviewData.hipoteseDiagnostica.ai,
+          conduta: reviewData.conduta.selected === 'doctor' ? reviewData.conduta.doctor : reviewData.conduta.ai,
+        },
+        selectedSources: {
+          hda: reviewData.hda.selected,
+          comorbidades: reviewData.comorbidades.selected,
+          medicacoes: reviewData.medicacoes.selected,
+          alergias: reviewData.alergias.selected,
+          hipoteseDiagnostica: reviewData.hipoteseDiagnostica.selected,
+          conduta: reviewData.conduta.selected,
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('Enviando dados finais para geração do documento:', finalData);
+      
+      // Chamar o edge function para gerar o documento final
+      const result = await generateFinalDocument(finalData);
+
+      if (result.success) {
+        toast({
+          title: "Documento gerado com sucesso",
+          description: "O documento final foi criado e a consulta foi finalizada.",
+        });
+
+        onComplete();
+      } else {
+        throw new Error(result.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Error generating document:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar documento. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingDocument(false);
+    }
   };
 
   const renderField = (
     title: string, 
     fieldKey: string, 
-    field: { doctor: string; ai: string; selected: string }
+    field: ReviewFieldData
   ) => {
     const isEditing = editingField === `${fieldKey}-doctor` || editingField === `${fieldKey}-ai`;
     
@@ -162,7 +273,9 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{field.doctor}</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {field.doctor || 'Não informado'}
+              </p>
             )}
           </div>
 
@@ -217,13 +330,42 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{field.ai}</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {field.ai || 'Não informado'}
+              </p>
             )}
           </div>
         </CardContent>
       </Card>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="flex items-center justify-center min-h-64">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Carregando dados da consulta...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!reviewData || !consultation) {
+    return (
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="text-center">
+          <p className="text-gray-600">Erro ao carregar dados da consulta.</p>
+          <Button onClick={onBack} className="mt-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -237,17 +379,32 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Revisão da Consulta</h1>
-              <p className="text-gray-600">Compare suas respostas com as sugestões da IA e escolha a melhor opção</p>
+              <p className="text-gray-600">
+                Paciente: {consultation.patient_name} • {consultation.consultation_type}
+              </p>
+              <p className="text-sm text-gray-500">
+                Compare suas respostas com as sugestões da IA e escolha a melhor opção
+              </p>
             </div>
           </div>
           
           <Button
             onClick={handleGenerateDocument}
+            disabled={generatingDocument}
             className="bg-green-600 hover:bg-green-700"
             size="lg"
           >
-            <FileText className="w-4 h-4 mr-2" />
-            Gerar Documento
+            {generatingDocument ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4 mr-2" />
+                Gerar Documento
+              </>
+            )}
           </Button>
         </div>
       </div>
