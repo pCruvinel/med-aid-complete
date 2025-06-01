@@ -1,6 +1,10 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ConsultationFormData } from "@/components/consultation/types";
+import { Database } from "@/integrations/supabase/types";
+
+type DatabaseConsultation = Database['public']['Tables']['consultations']['Row'];
+type DatabaseConsultationInsert = Database['public']['Tables']['consultations']['Insert'];
 
 export interface ConsultationRecord {
   id: string;
@@ -24,6 +28,28 @@ export interface ConsultationRecord {
   updated_at: string;
 }
 
+const mapDatabaseToConsultation = (dbRecord: DatabaseConsultation): ConsultationRecord => ({
+  id: dbRecord.id,
+  patient_name: dbRecord.patient_name,
+  consultation_type: dbRecord.consultation_type,
+  status: dbRecord.status as 'in-progress' | 'pending-review' | 'completed',
+  hda: dbRecord.hda || undefined,
+  hipotese_diagnostica: dbRecord.hipotese_diagnostica || undefined,
+  conduta: dbRecord.conduta || undefined,
+  exames_complementares: dbRecord.exames_complementares || undefined,
+  reavaliacao_medica: dbRecord.reavaliacao_medica || undefined,
+  complemento_evolucao: dbRecord.complemento_evolucao || undefined,
+  protocols: dbRecord.protocols || undefined,
+  comorbidades: dbRecord.comorbidades || undefined,
+  medicacoes: dbRecord.medicacoes || undefined,
+  alergias: dbRecord.alergias || undefined,
+  sinais_vitais: dbRecord.sinais_vitais || undefined,
+  exame_fisico: dbRecord.exame_fisico || undefined,
+  recording_duration: dbRecord.recording_duration || undefined,
+  created_at: dbRecord.created_at,
+  updated_at: dbRecord.updated_at,
+});
+
 export const consultationService = {
   async getAllConsultations(): Promise<ConsultationRecord[]> {
     const { data, error } = await supabase
@@ -36,7 +62,7 @@ export const consultationService = {
       throw error;
     }
 
-    return data || [];
+    return (data || []).map(mapDatabaseToConsultation);
   },
 
   async getConsultationById(id: string): Promise<ConsultationRecord | null> {
@@ -51,26 +77,26 @@ export const consultationService = {
       throw error;
     }
 
-    return data;
+    return data ? mapDatabaseToConsultation(data) : null;
   },
 
   async createConsultation(formData: ConsultationFormData, recordingDuration: number): Promise<ConsultationRecord> {
-    const consultationData = {
+    const consultationData: DatabaseConsultationInsert = {
       patient_name: formData.nomePaciente,
       consultation_type: formData.consultationType,
-      status: 'pending-review' as const,
+      status: 'pending-review',
       hda: formData.hda,
       hipotese_diagnostica: formData.hipoteseDiagnostica,
       conduta: formData.conduta,
       exames_complementares: formData.examesComplementares,
       reavaliacao_medica: formData.reavaliacaoMedica,
       complemento_evolucao: formData.complementoEvolucao,
-      protocols: formData.protocols,
-      comorbidades: formData.comorbidades,
-      medicacoes: formData.medicacoes,
-      alergias: formData.alergias,
-      sinais_vitais: formData.sinaisVitais,
-      exame_fisico: formData.exameFisico,
+      protocols: formData.protocols as any,
+      comorbidades: formData.comorbidades as any,
+      medicacoes: formData.medicacoes as any,
+      alergias: formData.alergias as any,
+      sinais_vitais: formData.sinaisVitais as any,
+      exame_fisico: formData.exameFisico as any,
       recording_duration: recordingDuration
     };
 
@@ -85,7 +111,7 @@ export const consultationService = {
       throw error;
     }
 
-    return data;
+    return mapDatabaseToConsultation(data);
   },
 
   async updateConsultationStatus(id: string, status: 'in-progress' | 'pending-review' | 'completed'): Promise<void> {
