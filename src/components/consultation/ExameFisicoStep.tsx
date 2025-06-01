@@ -1,17 +1,16 @@
-
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ExameFisico } from "./types";
 import { 
   Heart, 
-  Lungs, 
+  Activity, 
   Brain, 
   User, 
   Stethoscope,
   Eye,
   Ear,
-  Activity
+  Wind
 } from "lucide-react";
 
 interface ExameFisicoStepProps {
@@ -41,7 +40,7 @@ export const ExameFisicoStep = ({ exameFisico, onUpdate }: ExameFisicoStepProps)
     {
       key: 'respiratorio',
       label: 'Sistema Respiratório',
-      icon: <Lungs className="w-5 h-5" />,
+      icon: <Wind className="w-5 h-5" />,
       placeholder: 'Inspeção torácica, padrão respiratório, ausculta pulmonar, sons adventícios...',
       normalTemplate: 'Tórax simétrico, sem deformidades. Expansibilidade pulmonar preservada. Ausculta: Murmúrio vesicular fisiológico presente bilateral, sem ruídos adventícios.',
       minHeight: 'min-h-20'
