@@ -8,25 +8,27 @@ export const sendToWebhook = async (consultationData: ConsultationFormData & { a
     console.log('Enviando dados para webhook...', consultationData);
 
     // Save consultation to database first
+    const consultationInsert = {
+      patient_name: consultationData.nomePaciente,
+      consultation_type: consultationData.consultationType,
+      hda: consultationData.hda,
+      hipotese_diagnostica: consultationData.hipoteseDiagnostica,
+      conduta: consultationData.conduta,
+      exames_complementares: consultationData.examesComplementares,
+      reavaliacao_medica: consultationData.reavaliacaoMedica,
+      complemento_evolucao: consultationData.complementoEvolucao,
+      comorbidades: consultationData.comorbidades as any,
+      medicacoes: consultationData.medicacoes as any,
+      alergias: consultationData.alergias as any,
+      sinais_vitais: consultationData.sinaisVitais as any,
+      exame_fisico: consultationData.exameFisico as any,
+      protocols: consultationData.protocols as any,
+      status: 'processing'
+    };
+
     const { data: consultation, error: insertError } = await supabase
       .from('consultations')
-      .insert({
-        patient_name: consultationData.nomePaciente,
-        consultation_type: consultationData.consultationType,
-        hda: consultationData.hda,
-        hipotese_diagnostica: consultationData.hipoteseDiagnostica,
-        conduta: consultationData.conduta,
-        exames_complementares: consultationData.examesComplementares,
-        reavaliacao_medica: consultationData.reavaliacaoMedica,
-        complemento_evolucao: consultationData.complementoEvolucao,
-        comorbidades: consultationData.comorbidades,
-        medicacoes: consultationData.medicacoes,
-        alergias: consultationData.alergias,
-        sinais_vitais: consultationData.sinaisVitais,
-        exame_fisico: consultationData.exameFisico,
-        protocols: consultationData.protocols,
-        status: 'processing'
-      })
+      .insert(consultationInsert)
       .select()
       .single();
 
