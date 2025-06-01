@@ -23,7 +23,7 @@ export const sendToWebhook = async (consultationData: ConsultationFormData & { a
       sinais_vitais: consultationData.sinaisVitais as any,
       exame_fisico: consultationData.exameFisico as any,
       protocols: consultationData.protocols as any,
-      status: 'processing'
+      status: 'generating-analysis'
     };
 
     const { data: consultation, error: insertError } = await supabase
