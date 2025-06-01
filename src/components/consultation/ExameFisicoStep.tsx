@@ -33,7 +33,7 @@ export const ExameFisicoStep = ({ exameFisico, onUpdate }: ExameFisicoStepProps)
       key: 'estadoGeral',
       label: 'Estado Geral',
       icon: <User className="w-5 h-5" />,
-      placeholder: 'Descreva o estado geral do paciente: consciência, orientação, coloração, hidratação, nutrição...',
+      placeholder: 'Descreva o estado geral do paciente.',
       normalTemplate: 'Paciente em bom estado geral, lúcido, orientado no tempo e no espaço, acianótico, anictérico e afebril. Pele e mucosas coradas e hidratadas.',
       minHeight: 'min-h-24'
     },
@@ -41,7 +41,7 @@ export const ExameFisicoStep = ({ exameFisico, onUpdate }: ExameFisicoStepProps)
       key: 'respiratorio',
       label: 'Sistema Respiratório',
       icon: <Wind className="w-5 h-5" />,
-      placeholder: 'Inspeção torácica, padrão respiratório, ausculta pulmonar, sons adventícios...',
+      placeholder: 'Inspeção torácica, padrão respiratório, ausculta pulmonar..',
       normalTemplate: 'Tórax simétrico, sem deformidades. Expansibilidade pulmonar preservada. Ausculta: Murmúrio vesicular fisiológico presente bilateral, sem ruídos adventícios.',
       minHeight: 'min-h-20'
     },
@@ -49,7 +49,7 @@ export const ExameFisicoStep = ({ exameFisico, onUpdate }: ExameFisicoStepProps)
       key: 'cardiovascular',
       label: 'Sistema Cardiovascular',
       icon: <Heart className="w-5 h-5" />,
-      placeholder: 'Ausculta cardíaca, ritmo, frequência, sopros, bulhas, pulsos periféricos...',
+      placeholder: 'Ausculta cardíaca, ritmo, frequência...',
       normalTemplate: 'Ausculta: Ritmo cardíaco regular em dois tempos, sem sopros. Pulsos periféricos palpáveis e simétricos.',
       minHeight: 'min-h-20'
     },
@@ -164,7 +164,6 @@ export const ExameFisicoStep = ({ exameFisico, onUpdate }: ExameFisicoStepProps)
           <li>• Use os botões "Normal" para inserir achados normais padrão</li>
           <li>• Focalize nas alterações patológicas encontradas</li>
           <li>• Campos vazios serão interpretados como "não examinado"</li>
-          <li>• Use terminologia médica precisa e objetiva</li>
         </ul>
       </div>
     </div>
