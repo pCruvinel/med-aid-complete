@@ -1,5 +1,51 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ConsultationFormData } from "@/components/consultation/types";
+import { WEBHOOK_CONFIG } from "@/config/webhook";
+
+export const sendToWebhook = async (consultationData: ConsultationFormData & { audioBlob?: Blob }) => {
+  try {
+    console.log('Enviando dados para webhook...', consultationData);
+
+    // Save consultation to database first
+    const { data: consultation, error: insertError } = await supabase
+      .from('consultations')
+      .insert({
+        patient_name: consultationData.nomePaciente,
+        consultation_type: consultationData.consultationType,
+        hda: consultationData.hda,
+        hipotese_diagnostica: consultationData.hipoteseDiagnostica,
+        conduta: consultationData.conduta,
+        exames_complementares: consultationData.examesComplementares,
+        reavaliacao_medica: consultationData.reavaliacaoMedica,
+        complemento_evolucao: consultationData.complementoEvolucao,
+        comorbidades: consultationData.comorbidades,
+        medicacoes: consultationData.medicacoes,
+        alergias: consultationData.alergias,
+        sinais_vitais: consultationData.sinaisVitais,
+        exame_fisico: consultationData.exameFisico,
+        protocols: consultationData.protocols,
+        status: 'processing'
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Erro ao salvar consulta:', insertError);
+      throw new Error('Falha ao salvar consulta no banco de dados');
+    }
+
+    console.log('Consulta salva com ID:', consultation.id);
+
+    // Start analysis process
+    await processConsultationAnalysis(consultation.id, consultationData);
+
+    return consultation;
+  } catch (error) {
+    console.error('Erro no sendToWebhook:', error);
+    throw error;
+  }
+};
 
 export const processConsultationAnalysis = async (consultationId: string, consultationData: ConsultationFormData) => {
   try {
@@ -45,25 +91,17 @@ export const generateFinalDocument = async (finalData: any) => {
   try {
     console.log('Calling generate-final-document edge function with data:', finalData);
 
-    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/generate-final-document`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.supabaseKey}`,
-      },
-      body: JSON.stringify(finalData),
+    const { data, error } = await supabase.functions.invoke('generate-final-document', {
+      body: finalData
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response from generate-final-document:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    if (error) {
+      console.error('Error response from generate-final-document:', error);
+      throw new Error(`Error calling edge function: ${error.message}`);
     }
 
-    const result = await response.json();
-    console.log('Final document generation result:', result);
-
-    return result;
+    console.log('Final document generation result:', data);
+    return data;
   } catch (error) {
     console.error('Error in generateFinalDocument:', error);
     throw error;
