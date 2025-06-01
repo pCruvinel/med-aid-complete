@@ -270,7 +270,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <User className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-600">Sua Resposta Original</span>
+                <span className="text-sm font-medium text-blue-600">Sua Resposta</span>
                 {field.selected === 'doctor' && (
                   <Badge className="bg-blue-100 text-blue-800 border-0">
                     <Check className="w-3 h-3 mr-1" />
@@ -330,7 +330,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
               <div className="flex items-center space-x-2">
                 <Bot className={`w-4 h-4 ${hasAiData ? 'text-green-600' : 'text-gray-400'}`} />
                 <span className={`text-sm font-medium ${hasAiData ? 'text-green-600' : 'text-gray-500'}`}>
-                  Sugestão da IA
+                  Sugestão
                 </span>
                 {field.selected === 'ai' && hasAiData && (
                   <Badge className="bg-green-100 text-green-800 border-0">
@@ -419,7 +419,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
         <div className="flex items-center justify-center min-h-64">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">A IA ainda está processando esta consulta...</p>
+            <p className="text-gray-600">Esta consulta ainda está em processamento...</p>
             <p className="text-sm text-gray-500 mt-2">
               Isso pode levar alguns minutos. A página será atualizada automaticamente.
             </p>
@@ -449,7 +449,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
                 Paciente: {consultation.patient_name} • {consultation.consultation_type}
               </p>
               <p className="text-sm text-gray-500">
-                Compare suas respostas originais com as sugestões da IA e escolha a melhor opção
+                Compare as respostas originais com as sugestões e escolha a melhor opção
               </p>
             </div>
           </div>
@@ -499,7 +499,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
               </span>
             </div>
             <div>
-              <span className="font-medium">Sugestões da IA selecionadas:</span>
+              <span className="font-medium">Sugestões selecionadas:</span>
               <span className="ml-2 text-green-600">
                 {Object.values(reviewData).filter(field => field.selected === 'ai').length}
               </span>
