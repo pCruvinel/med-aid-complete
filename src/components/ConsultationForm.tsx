@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,18 +22,31 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
   const { formData, updateFormData, updateNestedFormData, updateProtocols, updateSepseAdulto } = useConsultationForm();
   const { isRecording, recordingTime, startRecording, stopRecording, formatTime, getAudioBlob } = useRecording();
+  
+  // Use refs to maintain stable references for cleanup
+  const isRecordingRef = useRef(isRecording);
+  const stopRecordingRef = useRef(stopRecording);
+
+  // Update refs when values change
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording;
+  }, [stopRecording]);
 
   const totalSteps = 13;
   const progress = (currentStep / totalSteps) * 100;
 
-  // Cleanup function to stop recording when component unmounts or user cancels
+  // Cleanup function to stop recording when component unmounts ONLY
   useEffect(() => {
     return () => {
-      if (isRecording) {
-        stopRecording();
+      if (isRecordingRef.current) {
+        stopRecordingRef.current();
       }
     };
-  }, [isRecording, stopRecording]);
+  }, []); // Empty dependency array - runs only on mount/unmount
 
   // Start recording when user begins filling the first field (patient name)
   const handlePatientNameChange = async (value: string) => {
