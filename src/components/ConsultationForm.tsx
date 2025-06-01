@@ -1,22 +1,22 @@
 
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, ArrowLeft, ArrowRight, Save, StopCircle, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { useRecording } from "@/hooks/useRecording";
 import { useConsultationForm } from "@/hooks/useConsultationForm";
+import { sendToWebhook } from "@/utils/webhookService";
+
+// Import step components
 import { PatientNameStep } from "./consultation/PatientNameStep";
 import { ConsultationTypeStep } from "./consultation/ConsultationTypeStep";
 import { ProtocolsStep } from "./consultation/ProtocolsStep";
 import { VitalSignsStep } from "./consultation/VitalSignsStep";
 import { ExameFisicoStep } from "./consultation/ExameFisicoStep";
+import { HDAStep, ConditionalFieldStep, SimpleTextStep } from "./consultation/BasicFieldsStep";
+import { FormHeader } from "./consultation/FormHeader";
+import { NavigationButtons } from "./consultation/NavigationButtons";
+import { FinishStep } from "./consultation/FinishStep";
 import { ConsultationFormProps } from "./consultation/types";
-import { sendToWebhook } from "@/utils/webhookService";
 
 export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -38,7 +38,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
     stopRecordingRef.current = stopRecording;
   }, [stopRecording]);
 
-  const totalSteps = 14; // Updated from 13 to 14
+  const totalSteps = 14;
   const progress = (currentStep / totalSteps) * 100;
 
   // Cleanup function to stop recording when component unmounts ONLY
@@ -48,7 +48,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
         stopRecordingRef.current();
       }
     };
-  }, []); // Empty dependency array - runs only on mount/unmount
+  }, []);
 
   // Start recording when user begins filling the first field (patient name)
   const handlePatientNameChange = async (value: string) => {
@@ -197,117 +197,40 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
 
       case 4:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">História da Doença Atual (HDA) *</h3>
-            <Textarea
-              placeholder="Descreva a história da doença atual..."
-              value={formData.hda}
-              onChange={(e) => updateFormData('hda', e.target.value)}
-              className="min-h-32"
-            />
-          </div>
+          <HDAStep
+            value={formData.hda}
+            onChange={(value) => updateFormData('hda', value)}
+          />
         );
 
       case 5:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Comorbidades *</h3>
-            <RadioGroup 
-              value={formData.comorbidades.tem} 
-              onValueChange={(value) => updateNestedFormData('comorbidades', 'tem', value)}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="sim" id="comorbidades-sim" />
-                <Label htmlFor="comorbidades-sim" className="cursor-pointer">SIM</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="nao" id="comorbidades-nao" />
-                <Label htmlFor="comorbidades-nao" className="cursor-pointer">NÃO</Label>
-              </div>
-            </RadioGroup>
-            
-            {formData.comorbidades.tem === 'sim' && (
-              <div>
-                <Label htmlFor="comorbidades-spec">Especificar:</Label>
-                <Textarea
-                  id="comorbidades-spec"
-                  placeholder="Especifique as comorbidades..."
-                  value={formData.comorbidades.especificar}
-                  onChange={(e) => updateNestedFormData('comorbidades', 'especificar', e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-            )}
-          </div>
+          <ConditionalFieldStep
+            title="Comorbidades"
+            field={formData.comorbidades}
+            onUpdate={(key, value) => updateNestedFormData('comorbidades', key, value)}
+            placeholder="Especifique as comorbidades..."
+          />
         );
 
       case 6:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Medicações de Uso Contínuo *</h3>
-            <RadioGroup 
-              value={formData.medicacoes.tem} 
-              onValueChange={(value) => updateNestedFormData('medicacoes', 'tem', value)}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="sim" id="medicacoes-sim" />
-                <Label htmlFor="medicacoes-sim" className="cursor-pointer">SIM</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="nao" id="medicacoes-nao" />
-                <Label htmlFor="medicacoes-nao" className="cursor-pointer">NÃO</Label>
-              </div>
-            </RadioGroup>
-            
-            {formData.medicacoes.tem === 'sim' && (
-              <div>
-                <Label htmlFor="medicacoes-spec">Especificar:</Label>
-                <Textarea
-                  id="medicacoes-spec"
-                  placeholder="Especifique as medicações..."
-                  value={formData.medicacoes.especificar}
-                  onChange={(e) => updateNestedFormData('medicacoes', 'especificar', e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-            )}
-          </div>
+          <ConditionalFieldStep
+            title="Medicações de Uso Contínuo"
+            field={formData.medicacoes}
+            onUpdate={(key, value) => updateNestedFormData('medicacoes', key, value)}
+            placeholder="Especifique as medicações..."
+          />
         );
 
       case 7:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Alergias *</h3>
-            <RadioGroup 
-              value={formData.alergias.tem} 
-              onValueChange={(value) => updateNestedFormData('alergias', 'tem', value)}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="sim" id="alergias-sim" />
-                <Label htmlFor="alergias-sim" className="cursor-pointer">SIM</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="nao" id="alergias-nao" />
-                <Label htmlFor="alergias-nao" className="cursor-pointer">NÃO</Label>
-              </div>
-            </RadioGroup>
-            
-            {formData.alergias.tem === 'sim' && (
-              <div>
-                <Label htmlFor="alergias-spec">Especificar:</Label>
-                <Textarea
-                  id="alergias-spec"
-                  placeholder="Especifique as alergias..."
-                  value={formData.alergias.especificar}
-                  onChange={(e) => updateNestedFormData('alergias', 'especificar', e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-            )}
-          </div>
+          <ConditionalFieldStep
+            title="Alergias"
+            field={formData.alergias}
+            onUpdate={(key, value) => updateNestedFormData('alergias', key, value)}
+            placeholder="Especifique as alergias..."
+          />
         );
 
       case 8:
@@ -328,55 +251,46 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
 
       case 10:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Hipótese Diagnóstica *</h3>
-            <Textarea
-              placeholder="Descreva a hipótese diagnóstica..."
-              value={formData.hipoteseDiagnostica}
-              onChange={(e) => updateFormData('hipoteseDiagnostica', e.target.value)}
-              className="min-h-32"
-            />
-          </div>
+          <SimpleTextStep
+            title="Hipótese Diagnóstica"
+            value={formData.hipoteseDiagnostica}
+            onChange={(value) => updateFormData('hipoteseDiagnostica', value)}
+            placeholder="Descreva a hipótese diagnóstica..."
+          />
         );
 
       case 11:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Conduta *</h3>
-            <Textarea
-              placeholder="Descreva a conduta..."
-              value={formData.conduta}
-              onChange={(e) => updateFormData('conduta', e.target.value)}
-              className="min-h-40"
-            />
-          </div>
+          <SimpleTextStep
+            title="Conduta"
+            value={formData.conduta}
+            onChange={(value) => updateFormData('conduta', value)}
+            placeholder="Descreva a conduta..."
+            minHeight="min-h-40"
+          />
         );
 
       case 12:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Exames Complementares Realizados</h3>
-            <Textarea
-              placeholder="Descreva os exames laboratoriais e de imagem realizados..."
-              value={formData.examesComplementares}
-              onChange={(e) => updateFormData('examesComplementares', e.target.value)}
-              className="min-h-32"
-            />
-          </div>
+          <SimpleTextStep
+            title="Exames Complementares Realizados"
+            value={formData.examesComplementares}
+            onChange={(value) => updateFormData('examesComplementares', value)}
+            placeholder="Descreva os exames laboratoriais e de imagem realizados..."
+            required={false}
+          />
         );
 
       case 13:
         if (formData.consultationType === 'reavaliacao') {
           return (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Reavaliação Médica</h3>
-              <Textarea
-                placeholder="Descreva a reavaliação médica..."
-                value={formData.reavaliacaoMedica}
-                onChange={(e) => updateFormData('reavaliacaoMedica', e.target.value)}
-                className="min-h-32"
-              />
-            </div>
+            <SimpleTextStep
+              title="Reavaliação Médica"
+              value={formData.reavaliacaoMedica}
+              onChange={(value) => updateFormData('reavaliacaoMedica', value)}
+              placeholder="Descreva a reavaliação médica..."
+              required={false}
+            />
           );
         }
         return null;
@@ -384,15 +298,13 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       case 14:
         if (formData.consultationType === 'complementacao') {
           return (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Complemento de Evolução</h3>
-              <Textarea
-                placeholder="Descreva o complemento de evolução..."
-                value={formData.complementoEvolucao}
-                onChange={(e) => updateFormData('complementoEvolucao', e.target.value)}
-                className="min-h-32"
-              />
-            </div>
+            <SimpleTextStep
+              title="Complemento de Evolução"
+              value={formData.complementoEvolucao}
+              onChange={(value) => updateFormData('complementoEvolucao', value)}
+              placeholder="Descreva o complemento de evolução..."
+              required={false}
+            />
           );
         }
         return null;
@@ -433,35 +345,10 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
     const nextStep = getNextStep();
     if (nextStep > totalSteps) {
       return (
-        <div className="max-w-4xl mx-auto p-6">
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-bold text-gray-900">Consulta Finalizada</CardTitle>
-                <Button 
-                  onClick={handleFinish} 
-                  disabled={isSending}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {isSending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Enviando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Enviar para Processamento
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">Revise as informações e clique em "Enviar para Processamento" para finalizar a consulta.</p>
-            </CardContent>
-          </Card>
-        </div>
+        <FinishStep 
+          onFinish={handleFinish}
+          isSending={isSending}
+        />
       );
     }
     setCurrentStep(nextStep);
@@ -470,53 +357,19 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <Button onClick={handleCancel} variant="outline" size="sm" disabled={isSending}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
-            </Button>
-            <h1 className="text-2xl font-bold text-gray-900">Nova Consulta</h1>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              {isRecording ? (
-                <>
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">Gravando: {formatTime(recordingTime)}</span>
-                  <Button onClick={stopRecording} size="sm" variant="outline" disabled={isSending}>
-                    <StopCircle className="w-4 h-4 mr-1" />
-                    Parar
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <MicOff className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-500">
-                    {hasStartedRecording ? "Gravação parada" : "Digite o nome do paciente para iniciar a gravação"}
-                  </span>
-                  {hasStartedRecording && (
-                    <Button onClick={startRecording} size="sm" variant="outline" disabled={isSending}>
-                      <Mic className="w-4 h-4 mr-1" />
-                      Retomar
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Etapa {currentStep} de {totalSteps}</span>
-            <span>{Math.round(progress)}% concluído</span>
-          </div>
-          <Progress value={progress} className="w-full" />
-        </div>
-      </div>
+      <FormHeader
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        progress={progress}
+        isRecording={isRecording}
+        recordingTime={recordingTime}
+        hasStartedRecording={hasStartedRecording}
+        formatTime={formatTime}
+        onCancel={handleCancel}
+        onStartRecording={startRecording}
+        onStopRecording={stopRecording}
+        isSending={isSending}
+      />
 
       <Card className="bg-white shadow-lg border-0">
         <CardContent className="p-6">
@@ -524,48 +377,17 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
         </CardContent>
       </Card>
 
-      <div className="flex justify-between mt-6">
-        <Button
-          onClick={() => setCurrentStep(getPrevStep())}
-          disabled={currentStep === 1 || isSending}
-          variant="outline"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Anterior
-        </Button>
-
-        <div className="flex space-x-2">
-          {currentStep < totalSteps && getNextStep() <= totalSteps && (
-            <Button
-              onClick={() => setCurrentStep(getNextStep())}
-              disabled={!canProceed() || isSending}
-            >
-              Próximo
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          )}
-          
-          {(currentStep === totalSteps || getNextStep() > totalSteps) && (
-            <Button
-              onClick={handleFinish}
-              className="bg-green-600 hover:bg-green-700"
-              disabled={!canProceed() || isSending}
-            >
-              {isSending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Finalizar Consulta
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
+      <NavigationButtons
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        canProceed={canProceed()}
+        isSending={isSending}
+        getNextStep={getNextStep}
+        getPrevStep={getPrevStep}
+        onPrevious={() => setCurrentStep(getPrevStep())}
+        onNext={() => setCurrentStep(getNextStep())}
+        onFinish={handleFinish}
+      />
     </div>
   );
 };
