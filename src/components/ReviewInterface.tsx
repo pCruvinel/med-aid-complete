@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Check, Edit, Robot, User } from "lucide-react";
+import { ArrowLeft, FileText, Check, Edit, Bot, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ReviewInterfaceProps {
@@ -175,7 +174,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
           }`}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
-                <Robot className="w-4 h-4 text-green-600" />
+                <Bot className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-medium text-green-600">Sugestão da IA</span>
                 {field.selected === 'ai' && (
                   <Badge className="bg-green-100 text-green-800 border-0">

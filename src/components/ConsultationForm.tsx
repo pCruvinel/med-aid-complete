@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -211,9 +210,12 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                       id="sirs"
                       checked={formData.protocols.sepseAdulto.sirs}
                       onCheckedChange={(checked) => 
-                        updateNestedFormData('protocols', 'sepseAdulto', {
-                          ...formData.protocols.sepseAdulto,
-                          sirs: checked
+                        updateFormData('protocols', {
+                          ...formData.protocols,
+                          sepseAdulto: {
+                            ...formData.protocols.sepseAdulto,
+                            sirs: checked
+                          }
                         })
                       }
                     />
@@ -224,9 +226,12 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                       id="disfuncao"
                       checked={formData.protocols.sepseAdulto.disfuncao}
                       onCheckedChange={(checked) => 
-                        updateNestedFormData('protocols', 'sepseAdulto', {
-                          ...formData.protocols.sepseAdulto,
-                          disfuncao: checked
+                        updateFormData('protocols', {
+                          ...formData.protocols,
+                          sepseAdulto: {
+                            ...formData.protocols.sepseAdulto,
+                            disfuncao: checked
+                          }
                         })
                       }
                     />
@@ -237,9 +242,12 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                       id="news"
                       checked={formData.protocols.sepseAdulto.news}
                       onCheckedChange={(checked) => 
-                        updateNestedFormData('protocols', 'sepseAdulto', {
-                          ...formData.protocols.sepseAdulto,
-                          news: checked
+                        updateFormData('protocols', {
+                          ...formData.protocols,
+                          sepseAdulto: {
+                            ...formData.protocols.sepseAdulto,
+                            news: checked
+                          }
                         })
                       }
                     />
@@ -253,7 +261,10 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="sepse-pediatrica"
                   checked={formData.protocols.sepsePediatrica}
                   onCheckedChange={(checked) => 
-                    updateNestedFormData('protocols', 'sepsePediatrica', checked)
+                    updateFormData('protocols', {
+                      ...formData.protocols,
+                      sepsePediatrica: checked
+                    })
                   }
                 />
                 <Label htmlFor="sepse-pediatrica">Sepse pediátrica</Label>
@@ -264,7 +275,10 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="avc"
                   checked={formData.protocols.avc}
                   onCheckedChange={(checked) => 
-                    updateNestedFormData('protocols', 'avc', checked)
+                    updateFormData('protocols', {
+                      ...formData.protocols,
+                      avc: checked
+                    })
                   }
                 />
                 <Label htmlFor="avc">Acidente Vascular Cerebral (AVC)</Label>
@@ -275,7 +289,10 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="dor-toracica"
                   checked={formData.protocols.dorToracica}
                   onCheckedChange={(checked) => 
-                    updateNestedFormData('protocols', 'dorToracica', checked)
+                    updateFormData('protocols', {
+                      ...formData.protocols,
+                      dorToracica: checked
+                    })
                   }
                 />
                 <Label htmlFor="dor-toracica">Dor torácica</Label>
@@ -286,7 +303,10 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="nao-se-aplica"
                   checked={formData.protocols.naoSeAplica}
                   onCheckedChange={(checked) => 
-                    updateNestedFormData('protocols', 'naoSeAplica', checked)
+                    updateFormData('protocols', {
+                      ...formData.protocols,
+                      naoSeAplica: checked
+                    })
                   }
                 />
                 <Label htmlFor="nao-se-aplica">Não se aplica</Label>
