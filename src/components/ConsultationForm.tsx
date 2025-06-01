@@ -20,15 +20,44 @@ import { sendToWebhook } from "@/utils/webhookService";
 export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSending, setIsSending] = useState(false);
+  const [hasStartedRecording, setHasStartedRecording] = useState(false);
   const { formData, updateFormData, updateNestedFormData, updateProtocols, updateSepseAdulto } = useConsultationForm();
   const { isRecording, recordingTime, startRecording, stopRecording, formatTime, getAudioBlob } = useRecording();
 
   const totalSteps = 13;
   const progress = (currentStep / totalSteps) * 100;
 
+  // Cleanup function to stop recording when component unmounts or user cancels
   useEffect(() => {
-    startRecording();
-  }, []);
+    return () => {
+      if (isRecording) {
+        stopRecording();
+      }
+    };
+  }, [isRecording, stopRecording]);
+
+  // Start recording when user begins filling the first field (patient name)
+  const handlePatientNameChange = async (value: string) => {
+    updateFormData('nomePaciente', value);
+    
+    // Start recording when user starts typing the patient name for the first time
+    if (value.trim() !== '' && !hasStartedRecording && !isRecording) {
+      setHasStartedRecording(true);
+      await startRecording();
+    }
+  };
+
+  // Enhanced cancel function to stop recording
+  const handleCancel = async () => {
+    if (isRecording) {
+      await stopRecording();
+      toast({
+        title: "Gravação interrompida",
+        description: "A gravação foi parada devido ao cancelamento da consulta.",
+      });
+    }
+    onCancel();
+  };
 
   const canProceed = () => {
     switch (currentStep) {
@@ -97,7 +126,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       
       toast({
         title: "Consulta enviada com sucesso",
-        description: "Os dados foram enviados para processamento. A solicitação foi encaminhada ao servidor.",
+        description: "Os dados foram enviados para processamento. A gravação foi finalizada automaticamente.",
       });
 
       onComplete(finalData);
@@ -131,7 +160,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
         return (
           <PatientNameStep 
             value={formData.nomePaciente}
-            onChange={(value) => updateFormData('nomePaciente', value)}
+            onChange={handlePatientNameChange}
           />
         );
 
@@ -419,7 +448,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
-            <Button onClick={onCancel} variant="outline" size="sm" disabled={isSending}>
+            <Button onClick={handleCancel} variant="outline" size="sm" disabled={isSending}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
@@ -440,11 +469,15 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
               ) : (
                 <>
                   <MicOff className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-500">Gravação parada</span>
-                  <Button onClick={startRecording} size="sm" variant="outline" disabled={isSending}>
-                    <Mic className="w-4 h-4 mr-1" />
-                    Iniciar
-                  </Button>
+                  <span className="text-sm text-gray-500">
+                    {hasStartedRecording ? "Gravação parada" : "Digite o nome do paciente para iniciar a gravação"}
+                  </span>
+                  {hasStartedRecording && (
+                    <Button onClick={startRecording} size="sm" variant="outline" disabled={isSending}>
+                      <Mic className="w-4 h-4 mr-1" />
+                      Retomar
+                    </Button>
+                  )}
                 </>
               )}
             </div>
