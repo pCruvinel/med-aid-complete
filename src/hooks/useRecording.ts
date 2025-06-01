@@ -9,21 +9,35 @@ export const useRecording = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      streamRef.current = stream;
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log('Audio chunk received, size:', event.data.size);
         }
       };
 
-      mediaRecorder.start();
+      mediaRecorder.onstart = () => {
+        console.log('Recording started');
+      };
+
+      mediaRecorder.onstop = () => {
+        console.log('Recording stopped, chunks:', audioChunksRef.current.length);
+      };
+
+      mediaRecorder.start(1000); // Collect data every second
       setIsRecording(true);
       setRecordingTime(0);
 
@@ -36,6 +50,7 @@ export const useRecording = () => {
         description: "O áudio da consulta está sendo gravado automaticamente.",
       });
     } catch (error) {
+      console.error('Error starting recording:', error);
       toast({
         title: "Erro ao iniciar gravação",
         description: "Não foi possível acessar o microfone.",
@@ -44,20 +59,30 @@ export const useRecording = () => {
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
+  const stopRecording = (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      if (mediaRecorderRef.current && isRecording) {
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          console.log('Final audio blob created, size:', audioBlob.size);
+          resolve(audioBlob);
+        };
+        
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+        
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+        }
 
-      // Stop all audio tracks
-      if (mediaRecorderRef.current.stream) {
-        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        // Stop all audio tracks
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+      } else {
+        resolve(null);
       }
-    }
+    });
   };
 
   const formatTime = (seconds: number) => {
@@ -74,6 +99,9 @@ export const useRecording = () => {
     return () => {
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
   }, []);

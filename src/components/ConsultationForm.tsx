@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, ArrowLeft, ArrowRight, Save, StopCircle } from "lucide-react";
+import { Mic, MicOff, ArrowLeft, ArrowRight, Save, StopCircle, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useRecording } from "@/hooks/useRecording";
 import { useConsultationForm } from "@/hooks/useConsultationForm";
@@ -14,9 +14,11 @@ import { ConsultationTypeStep } from "./consultation/ConsultationTypeStep";
 import { ProtocolsStep } from "./consultation/ProtocolsStep";
 import { VitalSignsStep } from "./consultation/VitalSignsStep";
 import { ConsultationFormProps } from "./consultation/types";
+import { sendToWebhook } from "@/utils/webhookService";
 
 export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSending, setIsSending] = useState(false);
   const { formData, updateFormData, updateNestedFormData, updateProtocols, updateSepseAdulto } = useConsultationForm();
   const { isRecording, recordingTime, startRecording, stopRecording, formatTime, getAudioBlob } = useRecording();
 
@@ -40,24 +42,44 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
     }
   };
 
-  const handleFinish = () => {
-    stopRecording();
+  const handleFinish = async () => {
+    if (isSending) return;
     
-    const finalData = {
-      ...formData,
-      audioBlob: getAudioBlob(),
-      recordingDuration: recordingTime,
-      timestamp: new Date().toISOString()
-    };
-
-    console.log('Sending to webhook:', finalData);
+    setIsSending(true);
     
-    toast({
-      title: "Consulta finalizada",
-      description: "Os dados foram enviados para processamento pela IA.",
-    });
+    try {
+      // Stop recording and get the audio blob
+      const audioBlob = await stopRecording();
+      
+      const finalData = {
+        ...formData,
+        audioBlob,
+        recordingDuration: recordingTime,
+        timestamp: new Date().toISOString()
+      };
 
-    onComplete(finalData);
+      console.log('Sending consultation data to webhook...', finalData);
+      
+      // Send to webhook
+      await sendToWebhook(finalData);
+      
+      toast({
+        title: "Consulta enviada com sucesso",
+        description: "Os dados foram enviados para processamento pela IA.",
+      });
+
+      onComplete(finalData);
+      
+    } catch (error) {
+      console.error('Error sending consultation:', error);
+      toast({
+        title: "Erro ao enviar consulta",
+        description: "Falha no envio dos dados. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const renderStep = () => {
@@ -311,9 +333,22 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-2xl font-bold text-gray-900">Consulta Finalizada</CardTitle>
-                <Button onClick={handleFinish} className="bg-green-600 hover:bg-green-700">
-                  <Save className="w-4 h-4 mr-2" />
-                  Enviar para Processamento
+                <Button 
+                  onClick={handleFinish} 
+                  disabled={isSending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isSending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Enviar para Processamento
+                    </>
+                  )}
                 </Button>
               </div>
             </CardHeader>
@@ -333,7 +368,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
-            <Button onClick={onCancel} variant="outline" size="sm">
+            <Button onClick={onCancel} variant="outline" size="sm" disabled={isSending}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
@@ -346,7 +381,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                 <>
                   <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
                   <span className="text-sm font-medium">Gravando: {formatTime(recordingTime)}</span>
-                  <Button onClick={stopRecording} size="sm" variant="outline">
+                  <Button onClick={stopRecording} size="sm" variant="outline" disabled={isSending}>
                     <StopCircle className="w-4 h-4 mr-1" />
                     Parar
                   </Button>
@@ -355,7 +390,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                 <>
                   <MicOff className="w-4 h-4 text-gray-400" />
                   <span className="text-sm text-gray-500">Gravação parada</span>
-                  <Button onClick={startRecording} size="sm" variant="outline">
+                  <Button onClick={startRecording} size="sm" variant="outline" disabled={isSending}>
                     <Mic className="w-4 h-4 mr-1" />
                     Iniciar
                   </Button>
@@ -383,7 +418,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       <div className="flex justify-between mt-6">
         <Button
           onClick={() => setCurrentStep(getPrevStep())}
-          disabled={currentStep === 1}
+          disabled={currentStep === 1 || isSending}
           variant="outline"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -394,7 +429,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           {currentStep < totalSteps && getNextStep() <= totalSteps && (
             <Button
               onClick={() => setCurrentStep(getNextStep())}
-              disabled={!canProceed()}
+              disabled={!canProceed() || isSending}
             >
               Próximo
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -405,10 +440,19 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
             <Button
               onClick={handleFinish}
               className="bg-green-600 hover:bg-green-700"
-              disabled={!canProceed()}
+              disabled={!canProceed() || isSending}
             >
-              <Save className="w-4 h-4 mr-2" />
-              Finalizar Consulta
+              {isSending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Finalizar Consulta
+                </>
+              )}
             </Button>
           )}
         </div>
