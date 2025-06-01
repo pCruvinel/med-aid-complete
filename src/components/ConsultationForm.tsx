@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { PatientNameStep } from "./consultation/PatientNameStep";
 import { ConsultationTypeStep } from "./consultation/ConsultationTypeStep";
 import { ProtocolsStep } from "./consultation/ProtocolsStep";
 import { VitalSignsStep } from "./consultation/VitalSignsStep";
+import { ExameFisicoStep } from "./consultation/ExameFisicoStep";
 import { ConsultationFormProps } from "./consultation/types";
 import { sendToWebhook } from "@/utils/webhookService";
 
@@ -36,7 +38,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
     stopRecordingRef.current = stopRecording;
   }, [stopRecording]);
 
-  const totalSteps = 13;
+  const totalSteps = 14; // Updated from 13 to 14
   const progress = (currentStep / totalSteps) * 100;
 
   // Cleanup function to stop recording when component unmounts ONLY
@@ -79,8 +81,8 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       case 5: return formData.comorbidades.tem !== '';
       case 6: return formData.medicacoes.tem !== '';
       case 7: return formData.alergias.tem !== '';
-      case 9: return formData.hipoteseDiagnostica.trim() !== '';
-      case 10: return formData.conduta.trim() !== '';
+      case 10: return formData.hipoteseDiagnostica.trim() !== '';
+      case 11: return formData.conduta.trim() !== '';
       default: return true;
     }
   };
@@ -213,14 +215,15 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
             <RadioGroup 
               value={formData.comorbidades.tem} 
               onValueChange={(value) => updateNestedFormData('comorbidades', 'tem', value)}
+              className="flex gap-6"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="sim" id="comorbidades-sim" />
-                <Label htmlFor="comorbidades-sim">SIM</Label>
+                <Label htmlFor="comorbidades-sim" className="cursor-pointer">SIM</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="nao" id="comorbidades-nao" />
-                <Label htmlFor="comorbidades-nao">NÃO</Label>
+                <Label htmlFor="comorbidades-nao" className="cursor-pointer">NÃO</Label>
               </div>
             </RadioGroup>
             
@@ -246,14 +249,15 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
             <RadioGroup 
               value={formData.medicacoes.tem} 
               onValueChange={(value) => updateNestedFormData('medicacoes', 'tem', value)}
+              className="flex gap-6"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="sim" id="medicacoes-sim" />
-                <Label htmlFor="medicacoes-sim">SIM</Label>
+                <Label htmlFor="medicacoes-sim" className="cursor-pointer">SIM</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="nao" id="medicacoes-nao" />
-                <Label htmlFor="medicacoes-nao">NÃO</Label>
+                <Label htmlFor="medicacoes-nao" className="cursor-pointer">NÃO</Label>
               </div>
             </RadioGroup>
             
@@ -279,14 +283,15 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
             <RadioGroup 
               value={formData.alergias.tem} 
               onValueChange={(value) => updateNestedFormData('alergias', 'tem', value)}
+              className="flex gap-6"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="sim" id="alergias-sim" />
-                <Label htmlFor="alergias-sim">SIM</Label>
+                <Label htmlFor="alergias-sim" className="cursor-pointer">SIM</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="nao" id="alergias-nao" />
-                <Label htmlFor="alergias-nao">NÃO</Label>
+                <Label htmlFor="alergias-nao" className="cursor-pointer">NÃO</Label>
               </div>
             </RadioGroup>
             
@@ -315,6 +320,14 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
 
       case 9:
         return (
+          <ExameFisicoStep 
+            exameFisico={formData.exameFisico}
+            onUpdate={(field, value) => updateNestedFormData('exameFisico', field, value)}
+          />
+        );
+
+      case 10:
+        return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Hipótese Diagnóstica *</h3>
             <Textarea
@@ -326,7 +339,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 10:
+      case 11:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Conduta *</h3>
@@ -339,7 +352,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 11:
+      case 12:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Exames Complementares Realizados</h3>
@@ -352,7 +365,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 12:
+      case 13:
         if (formData.consultationType === 'reavaliacao') {
           return (
             <div className="space-y-4">
@@ -368,7 +381,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
         }
         return null;
 
-      case 13:
+      case 14:
         if (formData.consultationType === 'complementacao') {
           return (
             <div className="space-y-4">
@@ -390,29 +403,29 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
   };
 
   const getNextStep = () => {
-    if (currentStep === 11) {
-      if (formData.consultationType === 'reavaliacao') return 12;
-      if (formData.consultationType === 'complementacao') return 13;
+    if (currentStep === 12) {
+      if (formData.consultationType === 'reavaliacao') return 13;
+      if (formData.consultationType === 'complementacao') return 14;
       return totalSteps + 1;
     }
-    if (currentStep === 12 && formData.consultationType === 'reavaliacao') {
+    if (currentStep === 13 && formData.consultationType === 'reavaliacao') {
       return totalSteps + 1;
     }
-    if (currentStep === 13 && formData.consultationType === 'complementacao') {
+    if (currentStep === 14 && formData.consultationType === 'complementacao') {
       return totalSteps + 1;
     }
     return currentStep + 1;
   };
 
   const getPrevStep = () => {
-    if (currentStep === 13 && formData.consultationType === 'complementacao') return 11;
-    if (currentStep === 12 && formData.consultationType === 'reavaliacao') return 11;
+    if (currentStep === 14 && formData.consultationType === 'complementacao') return 12;
+    if (currentStep === 13 && formData.consultationType === 'reavaliacao') return 12;
     return currentStep - 1;
   };
 
   const shouldShowStep = () => {
-    if (currentStep === 12 && formData.consultationType !== 'reavaliacao') return false;
-    if (currentStep === 13 && formData.consultationType !== 'complementacao') return false;
+    if (currentStep === 13 && formData.consultationType !== 'reavaliacao') return false;
+    if (currentStep === 14 && formData.consultationType !== 'complementacao') return false;
     return true;
   };
 

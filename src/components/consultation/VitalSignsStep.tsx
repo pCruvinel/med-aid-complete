@@ -86,15 +86,15 @@ export const VitalSignsStep = ({ sinaisVitais, onUpdate }: VitalSignsStepProps) 
         <RadioGroup 
           value={sinaisVitais.alteracaoConsciencia} 
           onValueChange={(value) => onUpdate('alteracaoConsciencia', value)}
-          className="mt-2"
+          className="flex gap-6 mt-2"
         >
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="sim" id="consciencia-sim" />
-            <Label htmlFor="consciencia-sim">SIM</Label>
+            <Label htmlFor="consciencia-sim" className="cursor-pointer">SIM</Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="nao" id="consciencia-nao" />
-            <Label htmlFor="consciencia-nao">NÃO</Label>
+            <Label htmlFor="consciencia-nao" className="cursor-pointer">NÃO</Label>
           </div>
         </RadioGroup>
       </div>
