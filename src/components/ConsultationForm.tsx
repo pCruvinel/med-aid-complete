@@ -10,6 +10,7 @@ import { Mic, MicOff, ArrowLeft, ArrowRight, Save, StopCircle, Loader2 } from "l
 import { toast } from "@/hooks/use-toast";
 import { useRecording } from "@/hooks/useRecording";
 import { useConsultationForm } from "@/hooks/useConsultationForm";
+import { PatientNameStep } from "./consultation/PatientNameStep";
 import { ConsultationTypeStep } from "./consultation/ConsultationTypeStep";
 import { ProtocolsStep } from "./consultation/ProtocolsStep";
 import { VitalSignsStep } from "./consultation/VitalSignsStep";
@@ -22,7 +23,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
   const { formData, updateFormData, updateNestedFormData, updateProtocols, updateSepseAdulto } = useConsultationForm();
   const { isRecording, recordingTime, startRecording, stopRecording, formatTime, getAudioBlob } = useRecording();
 
-  const totalSteps = 12;
+  const totalSteps = 13;
   const progress = (currentStep / totalSteps) * 100;
 
   useEffect(() => {
@@ -31,13 +32,14 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
 
   const canProceed = () => {
     switch (currentStep) {
-      case 1: return formData.consultationType !== '';
-      case 3: return formData.hda.trim() !== '';
-      case 4: return formData.comorbidades.tem !== '';
-      case 5: return formData.medicacoes.tem !== '';
-      case 6: return formData.alergias.tem !== '';
-      case 8: return formData.hipoteseDiagnostica.trim() !== '';
-      case 9: return formData.conduta.trim() !== '';
+      case 1: return formData.nomePaciente.trim() !== '';
+      case 2: return formData.consultationType !== '';
+      case 4: return formData.hda.trim() !== '';
+      case 5: return formData.comorbidades.tem !== '';
+      case 6: return formData.medicacoes.tem !== '';
+      case 7: return formData.alergias.tem !== '';
+      case 9: return formData.hipoteseDiagnostica.trim() !== '';
+      case 10: return formData.conduta.trim() !== '';
       default: return true;
     }
   };
@@ -54,6 +56,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       // Prepare all data for sending
       const finalData = {
         // Basic info
+        nomePaciente: formData.nomePaciente,
         consultationType: formData.consultationType,
         timestamp: new Date().toISOString(),
         recordingDuration: recordingTime,
@@ -79,6 +82,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       };
 
       console.log('Final data being sent:', {
+        nomePaciente: finalData.nomePaciente,
         consultationType: finalData.consultationType,
         hasHda: !!finalData.hda,
         hasHipotese: !!finalData.hipoteseDiagnostica,
@@ -125,13 +129,21 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
     switch (currentStep) {
       case 1:
         return (
+          <PatientNameStep 
+            value={formData.nomePaciente}
+            onChange={(value) => updateFormData('nomePaciente', value)}
+          />
+        );
+
+      case 2:
+        return (
           <ConsultationTypeStep 
             value={formData.consultationType}
             onChange={(value) => updateFormData('consultationType', value)}
           />
         );
 
-      case 2:
+      case 3:
         return (
           <ProtocolsStep 
             protocols={formData.protocols}
@@ -140,7 +152,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           />
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">História da Doença Atual (HDA) *</h3>
@@ -153,7 +165,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Comorbidades *</h3>
@@ -186,7 +198,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Medicações de Uso Contínuo *</h3>
@@ -219,7 +231,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 6:
+      case 7:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Alergias *</h3>
@@ -252,7 +264,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 7:
+      case 8:
         return (
           <VitalSignsStep 
             sinaisVitais={formData.sinaisVitais}
@@ -260,7 +272,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           />
         );
 
-      case 8:
+      case 9:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Hipótese Diagnóstica *</h3>
@@ -273,7 +285,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 9:
+      case 10:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Conduta *</h3>
@@ -286,7 +298,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 10:
+      case 11:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Exames Complementares Realizados</h3>
@@ -299,7 +311,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         );
 
-      case 11:
+      case 12:
         if (formData.consultationType === 'reavaliacao') {
           return (
             <div className="space-y-4">
@@ -315,7 +327,7 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
         }
         return null;
 
-      case 12:
+      case 13:
         if (formData.consultationType === 'complementacao') {
           return (
             <div className="space-y-4">
@@ -337,29 +349,29 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
   };
 
   const getNextStep = () => {
-    if (currentStep === 10) {
-      if (formData.consultationType === 'reavaliacao') return 11;
-      if (formData.consultationType === 'complementacao') return 12;
+    if (currentStep === 11) {
+      if (formData.consultationType === 'reavaliacao') return 12;
+      if (formData.consultationType === 'complementacao') return 13;
       return totalSteps + 1;
     }
-    if (currentStep === 11 && formData.consultationType === 'reavaliacao') {
+    if (currentStep === 12 && formData.consultationType === 'reavaliacao') {
       return totalSteps + 1;
     }
-    if (currentStep === 12 && formData.consultationType === 'complementacao') {
+    if (currentStep === 13 && formData.consultationType === 'complementacao') {
       return totalSteps + 1;
     }
     return currentStep + 1;
   };
 
   const getPrevStep = () => {
-    if (currentStep === 12 && formData.consultationType === 'complementacao') return 10;
-    if (currentStep === 11 && formData.consultationType === 'reavaliacao') return 10;
+    if (currentStep === 13 && formData.consultationType === 'complementacao') return 11;
+    if (currentStep === 12 && formData.consultationType === 'reavaliacao') return 11;
     return currentStep - 1;
   };
 
   const shouldShowStep = () => {
-    if (currentStep === 11 && formData.consultationType !== 'reavaliacao') return false;
-    if (currentStep === 12 && formData.consultationType !== 'complementacao') return false;
+    if (currentStep === 12 && formData.consultationType !== 'reavaliacao') return false;
+    if (currentStep === 13 && formData.consultationType !== 'complementacao') return false;
     return true;
   };
 

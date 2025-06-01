@@ -41,6 +41,7 @@ export interface ExameFisico {
 }
 
 export interface ConsultationFormData {
+  nomePaciente: string;
   consultationType: string;
   protocols: Protocols;
   hda: string;

@@ -4,6 +4,7 @@ import { ConsultationFormData } from "@/components/consultation/types";
 
 export const useConsultationForm = () => {
   const [formData, setFormData] = useState<ConsultationFormData>({
+    nomePaciente: '',
     consultationType: '',
     protocols: {
       sepseAdulto: { sirs: false, disfuncao: false, news: false },

@@ -1,5 +1,6 @@
 
 interface WebhookData {
+  nomePaciente: string;
   consultationType: string;
   protocols: any;
   hda: string;
@@ -34,6 +35,7 @@ export const sendToWebhook = async (data: WebhookData): Promise<boolean> => {
     // Create a flat structure with all fields from the form
     const payload = {
       // Basic consultation info
+      nomePaciente: data.nomePaciente,
       consultationType: data.consultationType,
       timestamp: data.timestamp,
       recordingDuration: data.recordingDuration,
@@ -62,6 +64,7 @@ export const sendToWebhook = async (data: WebhookData): Promise<boolean> => {
     console.log('Payload size:', JSON.stringify(payload).length, 'bytes');
     console.log('Audio included:', !!audioBase64);
     console.log('Payload preview:', {
+      nomePaciente: payload.nomePaciente,
       consultationType: payload.consultationType,
       hasHda: !!payload.hda,
       hasHipotese: !!payload.hipoteseDiagnostica,
