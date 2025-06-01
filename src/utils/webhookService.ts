@@ -26,41 +26,49 @@ export const sendToWebhook = async (data: WebhookData): Promise<boolean> => {
     
     // Convert audio blob to base64 if it exists
     let audioBase64 = null;
-    if (data.audioBlob) {
+    if (data.audioBlob && data.audioBlob.size > 0) {
       audioBase64 = await blobToBase64(data.audioBlob);
       console.log('Audio converted to base64, size:', audioBase64.length);
     }
 
-    // Structure the payload
+    // Create a flat structure with all fields from the form
     const payload = {
-      consultation: {
-        type: data.consultationType,
-        timestamp: data.timestamp,
-        recordingDuration: data.recordingDuration
-      },
+      // Basic consultation info
+      consultationType: data.consultationType,
+      timestamp: data.timestamp,
+      recordingDuration: data.recordingDuration,
+      
+      // Clinical data fields
+      hda: data.hda,
+      hipoteseDiagnostica: data.hipoteseDiagnostica,
+      conduta: data.conduta,
+      examesComplementares: data.examesComplementares,
+      reavaliacaoMedica: data.reavaliacaoMedica,
+      complementoEvolucao: data.complementoEvolucao,
+      
+      // Structured data
+      comorbidades: data.comorbidades,
+      medicacoes: data.medicacoes,
+      alergias: data.alergias,
+      sinaisVitais: data.sinaisVitais,
+      exameFisico: data.exameFisico,
       protocols: data.protocols,
-      clinicalData: {
-        hda: data.hda,
-        comorbidades: data.comorbidades,
-        medicacoes: data.medicacoes,
-        alergias: data.alergias,
-        sinaisVitais: data.sinaisVitais,
-        exameFisico: data.exameFisico,
-        hipoteseDiagnostica: data.hipoteseDiagnostica,
-        conduta: data.conduta,
-        examesComplementares: data.examesComplementares,
-        reavaliacaoMedica: data.reavaliacaoMedica,
-        complementoEvolucao: data.complementoEvolucao
-      },
-      audio: audioBase64 ? {
-        data: audioBase64,
-        mimeType: 'audio/webm',
-        duration: data.recordingDuration
-      } : null
+      
+      // Audio data
+      audio: audioBase64
     };
 
     console.log('Sending payload to webhook:', webhookUrl);
-    console.log('Payload structure:', JSON.stringify(payload, null, 2));
+    console.log('Payload size:', JSON.stringify(payload).length, 'bytes');
+    console.log('Audio included:', !!audioBase64);
+    console.log('Payload preview:', {
+      consultationType: payload.consultationType,
+      hasHda: !!payload.hda,
+      hasHipotese: !!payload.hipoteseDiagnostica,
+      hasConduta: !!payload.conduta,
+      hasAudio: !!payload.audio,
+      audioSize: payload.audio ? payload.audio.length : 0
+    });
     
     // First, try the normal request
     try {
@@ -95,7 +103,7 @@ export const sendToWebhook = async (data: WebhookData): Promise<boolean> => {
 
       // With no-cors, we can't read the response, but if no error is thrown,
       // the request was sent successfully
-      console.log('Request sent with no-cors mode');
+      console.log('Request sent with no-cors mode, payload size:', JSON.stringify(payload).length);
       return true;
     }
     

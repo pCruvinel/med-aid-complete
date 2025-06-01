@@ -51,14 +51,42 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       // Stop recording and get the audio blob
       const audioBlob = await stopRecording();
       
+      // Prepare all data for sending
       const finalData = {
-        ...formData,
-        audioBlob,
+        // Basic info
+        consultationType: formData.consultationType,
+        timestamp: new Date().toISOString(),
         recordingDuration: recordingTime,
-        timestamp: new Date().toISOString()
+        
+        // Clinical fields
+        hda: formData.hda || '',
+        hipoteseDiagnostica: formData.hipoteseDiagnostica || '',
+        conduta: formData.conduta || '',
+        examesComplementares: formData.examesComplementares || '',
+        reavaliacaoMedica: formData.reavaliacaoMedica || '',
+        complementoEvolucao: formData.complementoEvolucao || '',
+        
+        // Structured data
+        comorbidades: formData.comorbidades,
+        medicacoes: formData.medicacoes,
+        alergias: formData.alergias,
+        sinaisVitais: formData.sinaisVitais,
+        exameFisico: formData.exameFisico,
+        protocols: formData.protocols,
+        
+        // Audio
+        audioBlob
       };
 
-      console.log('Sending consultation data to webhook...', finalData);
+      console.log('Final data being sent:', {
+        consultationType: finalData.consultationType,
+        hasHda: !!finalData.hda,
+        hasHipotese: !!finalData.hipoteseDiagnostica,
+        hasConduta: !!finalData.conduta,
+        hasAudio: !!finalData.audioBlob,
+        recordingDuration: finalData.recordingDuration,
+        fieldsCount: Object.keys(finalData).length
+      });
       
       // Send to webhook
       await sendToWebhook(finalData);
