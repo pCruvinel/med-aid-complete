@@ -27,7 +27,7 @@ export const useConsultations = () => {
     }
   };
 
-  const updateConsultationStatus = async (id: string, status: 'in-progress' | 'pending-review' | 'completed') => {
+  const updateConsultationStatus = async (id: string, status: 'in-progress' | 'pending-review' | 'completed' | 'generating-analysis') => {
     try {
       await consultationService.updateConsultationStatus(id, status);
       setConsultations(prev => 
@@ -37,9 +37,17 @@ export const useConsultations = () => {
             : consultation
         )
       );
+      
+      const statusMessages = {
+        'in-progress': 'Consulta marcada como em andamento',
+        'pending-review': 'Consulta pronta para revisão',
+        'completed': 'Consulta finalizada',
+        'generating-analysis': 'Iniciando análise da consulta'
+      };
+      
       toast({
         title: "Status atualizado",
-        description: "O status da consulta foi atualizado com sucesso.",
+        description: statusMessages[status],
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar status';
@@ -55,6 +63,16 @@ export const useConsultations = () => {
     setConsultations(prev => [consultation, ...prev]);
   };
 
+  const updateConsultation = (consultationId: string, updates: Partial<ConsultationRecord>) => {
+    setConsultations(prev => 
+      prev.map(consultation => 
+        consultation.id === consultationId 
+          ? { ...consultation, ...updates }
+          : consultation
+      )
+    );
+  };
+
   useEffect(() => {
     fetchConsultations();
   }, []);
@@ -65,6 +83,7 @@ export const useConsultations = () => {
     error,
     fetchConsultations,
     updateConsultationStatus,
-    addConsultation
+    addConsultation,
+    updateConsultation
   };
 };

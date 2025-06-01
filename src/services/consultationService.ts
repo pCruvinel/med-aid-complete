@@ -10,7 +10,7 @@ export interface ConsultationRecord {
   id: string;
   patient_name: string;
   consultation_type: string;
-  status: 'in-progress' | 'pending-review' | 'completed';
+  status: 'in-progress' | 'pending-review' | 'completed' | 'generating-analysis';
   hda?: string;
   hipotese_diagnostica?: string;
   conduta?: string;
@@ -32,7 +32,7 @@ const mapDatabaseToConsultation = (dbRecord: DatabaseConsultation): Consultation
   id: dbRecord.id,
   patient_name: dbRecord.patient_name,
   consultation_type: dbRecord.consultation_type,
-  status: dbRecord.status as 'in-progress' | 'pending-review' | 'completed',
+  status: dbRecord.status as 'in-progress' | 'pending-review' | 'completed' | 'generating-analysis',
   hda: dbRecord.hda || undefined,
   hipotese_diagnostica: dbRecord.hipotese_diagnostica || undefined,
   conduta: dbRecord.conduta || undefined,
@@ -84,7 +84,7 @@ export const consultationService = {
     const consultationData: DatabaseConsultationInsert = {
       patient_name: formData.nomePaciente,
       consultation_type: formData.consultationType,
-      status: 'pending-review',
+      status: 'generating-analysis', // Mudança aqui: inicia com 'generating-analysis'
       hda: formData.hda,
       hipotese_diagnostica: formData.hipoteseDiagnostica,
       conduta: formData.conduta,
@@ -114,7 +114,7 @@ export const consultationService = {
     return mapDatabaseToConsultation(data);
   },
 
-  async updateConsultationStatus(id: string, status: 'in-progress' | 'pending-review' | 'completed'): Promise<void> {
+  async updateConsultationStatus(id: string, status: 'in-progress' | 'pending-review' | 'completed' | 'generating-analysis'): Promise<void> {
     const { error } = await supabase
       .from('consultations')
       .update({ status })
@@ -122,6 +122,26 @@ export const consultationService = {
 
     if (error) {
       console.error('Error updating consultation status:', error);
+      throw error;
+    }
+  },
+
+  async updateConsultationWithAnalysis(id: string, analysisData: any): Promise<void> {
+    const { error } = await supabase
+      .from('consultations')
+      .update({
+        hda: analysisData['História da Doença Atual (HDA)'],
+        hipotese_diagnostica: analysisData['Hipótese Diagnóstica'],
+        conduta: analysisData['Conduta'],
+        comorbidades: { tem: 'sim', especificar: analysisData['Comorbidades'] },
+        medicacoes: { tem: 'sim', especificar: analysisData['Medicações de Uso Contínuo'] },
+        alergias: { tem: 'sim', especificar: analysisData['Alergias'] },
+        status: 'pending-review'
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating consultation with analysis:', error);
       throw error;
     }
   },

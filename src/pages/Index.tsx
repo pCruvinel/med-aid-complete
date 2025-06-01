@@ -3,17 +3,18 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, CheckCircle, FileText, Loader2 } from "lucide-react";
+import { Plus, Clock, CheckCircle, FileText, Loader2, Brain } from "lucide-react";
 import { ConsultationForm } from "@/components/ConsultationForm";
 import { ReviewInterface } from "@/components/ReviewInterface";
 import { useConsultations } from "@/hooks/useConsultations";
 import { consultationService } from "@/services/consultationService";
+import { processConsultationAnalysis } from "@/utils/webhookService";
 import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'dashboard' | 'consultation' | 'review'>('dashboard');
   const [selectedConsultation, setSelectedConsultation] = useState<string | null>(null);
-  const { consultations, loading, updateConsultationStatus, addConsultation } = useConsultations();
+  const { consultations, loading, updateConsultationStatus, addConsultation, updateConsultation } = useConsultations();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -23,6 +24,8 @@ const Index = () => {
         return 'bg-yellow-100 text-yellow-800';
       case 'completed':
         return 'bg-green-100 text-green-800';
+      case 'generating-analysis':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -36,6 +39,8 @@ const Index = () => {
         return <FileText className="w-4 h-4" />;
       case 'completed':
         return <CheckCircle className="w-4 h-4" />;
+      case 'generating-analysis':
+        return <Brain className="w-4 h-4 animate-pulse" />;
       default:
         return <Clock className="w-4 h-4" />;
     }
@@ -49,6 +54,8 @@ const Index = () => {
         return 'Aguardando revisão';
       case 'completed':
         return 'Finalizada';
+      case 'generating-analysis':
+        return 'Gerando análise';
       default:
         return status;
     }
@@ -80,8 +87,28 @@ const Index = () => {
 
       toast({
         title: "Consulta salva",
-        description: "A consulta foi salva com sucesso no banco de dados.",
+        description: "A consulta foi salva e está sendo analisada pela IA.",
       });
+
+      // Iniciar processamento em background
+      processConsultationAnalysis(savedConsultation.id, consultationData)
+        .then(() => {
+          updateConsultation(savedConsultation.id, { status: 'pending-review' });
+          toast({
+            title: "Análise concluída",
+            description: "A análise da IA foi concluída. A consulta está pronta para revisão.",
+          });
+        })
+        .catch((error) => {
+          console.error('Error in analysis processing:', error);
+          updateConsultation(savedConsultation.id, { status: 'pending-review' });
+          toast({
+            title: "Análise parcial",
+            description: "Houve um problema na análise automática, mas a consulta está disponível para revisão manual.",
+            variant: "destructive",
+          });
+        });
+
     } catch (error) {
       console.error('Error saving consultation:', error);
       toast({
@@ -140,7 +167,7 @@ const Index = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-white shadow-lg border-0">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Total de Consultas</CardTitle>
@@ -148,6 +175,17 @@ const Index = () => {
             <CardContent>
               <div className="text-3xl font-bold text-gray-900">
                 {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : consultations.length}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-white shadow-lg border-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Gerando Análise</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600">
+                {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : consultations.filter(c => c.status === 'generating-analysis').length}
               </div>
             </CardContent>
           </Card>
