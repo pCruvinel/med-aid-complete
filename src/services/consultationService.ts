@@ -55,6 +55,11 @@ export interface AiAnalysisRecord {
   updated_at: string;
 }
 
+export interface WebhookPayload {
+  id: string;
+  consultation_id: string;
+}
+
 const mapDatabaseToConsultation = (dbRecord: DatabaseConsultation): ConsultationRecord => ({
   id: dbRecord.id,
   patient_name: dbRecord.patient_name,
@@ -126,11 +131,70 @@ export const consultationService = {
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching AI analysis:', error);
+      console.error('Error fetching AI analysis by consultation ID:', error);
       throw error;
     }
 
     return data as AiAnalysisRecord | null;
+  },
+
+  async getAiAnalysisById(analysisId: string): Promise<AiAnalysisRecord | null> {
+    console.log(`Buscando análise de IA por ID: ${analysisId}`);
+    
+    const { data, error } = await supabase
+      .from('ai_analysis')
+      .select(`
+        id,
+        consultation_id,
+        hda_ai,
+        comorbidades_ai,
+        medicacoes_ai,
+        alergias_ai,
+        hipotese_diagnostica_ai,
+        conduta_ai,
+        analysis_timestamp,
+        webhook_attempts,
+        processing_status,
+        created_at,
+        updated_at
+      `)
+      .eq('id', analysisId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao buscar análise da IA por ID:', error);
+      throw new Error(`Falha ao recuperar análise da IA: ${error.message}`);
+    }
+
+    if (!data) {
+      console.warn(`Análise da IA não encontrada para ID: ${analysisId}`);
+      return null;
+    }
+
+    console.log('Análise da IA recuperada com sucesso:', data);
+    return data as AiAnalysisRecord;
+  },
+
+  async validateWebhookPayload(payload: any): Promise<WebhookPayload | null> {
+    if (!payload || typeof payload !== 'object') {
+      console.error('Payload do webhook inválido: deve ser um objeto');
+      return null;
+    }
+
+    const { id, consultation_id } = payload;
+
+    if (!id || typeof id !== 'string') {
+      console.error('Campo "id" obrigatório e deve ser uma string');
+      return null;
+    }
+
+    if (!consultation_id || typeof consultation_id !== 'string') {
+      console.error('Campo "consultation_id" obrigatório e deve ser uma string');
+      return null;
+    }
+
+    console.log('Payload do webhook validado com sucesso:', { id, consultation_id });
+    return { id, consultation_id };
   },
 
   async createConsultation(formData: ConsultationFormData, recordingDuration: number): Promise<ConsultationRecord> {

@@ -1,13 +1,14 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Check, Edit, Bot, User, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, FileText, Check, Edit, Bot, User, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { consultationService, ConsultationRecord, AiAnalysisRecord } from "@/services/consultationService";
 import { generateFinalDocument } from "@/utils/webhookService";
+import { AiSuggestionsSection } from "./AiSuggestionsSection";
+import { useReviewWebhook } from "@/hooks/useReviewWebhook";
 
 interface ReviewInterfaceProps {
   consultationId: string;
@@ -38,6 +39,8 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [generatingDocument, setGeneratingDocument] = useState(false);
+  
+  const { processWebhookPayload, loading: webhookLoading, error: webhookError, resetError } = useReviewWebhook();
 
   useEffect(() => {
     loadConsultationData();
@@ -145,6 +148,20 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
       onBack();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleWebhookRefresh = async () => {
+    // Exemplo de payload do webhook - em produção isso viria do webhook real
+    const mockWebhookPayload = {
+      id: aiAnalysis?.id || "sample-analysis-id",
+      consultation_id: consultationId
+    };
+
+    const refreshedAnalysis = await processWebhookPayload(mockWebhookPayload);
+    if (refreshedAnalysis) {
+      setAiAnalysis(refreshedAnalysis);
+      await loadConsultationData(); // Recarregar dados completos
     }
   };
 
@@ -454,25 +471,60 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
             </div>
           </div>
           
-          <Button
-            onClick={handleGenerateDocument}
-            disabled={generatingDocument}
-            className="bg-green-600 hover:bg-green-700"
-            size="lg"
-          >
-            {generatingDocument ? (
-              <>
+          <div className="flex space-x-2">
+            <Button
+              onClick={handleWebhookRefresh}
+              disabled={webhookLoading}
+              variant="outline"
+              size="sm"
+            >
+              {webhookLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Gerando...
-              </>
-            ) : (
-              <>
-                <FileText className="w-4 h-4 mr-2" />
-                Gerar Documento
-              </>
-            )}
-          </Button>
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Atualizar IA
+            </Button>
+            
+            <Button
+              onClick={handleGenerateDocument}
+              disabled={generatingDocument}
+              className="bg-green-600 hover:bg-green-700"
+              size="lg"
+            >
+              {generatingDocument ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Gerar Documento
+                </>
+              )}
+            </Button>
+          </div>
         </div>
+
+        {webhookError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="w-4 h-4 text-red-600 mr-2" />
+                <span className="text-sm text-red-700">{webhookError}</span>
+              </div>
+              <Button onClick={resetError} variant="ghost" size="sm">
+                Fechar
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Seção de Sugestões da IA */}
+      <div className="mb-8">
+        <AiSuggestionsSection aiAnalysis={aiAnalysis} loading={webhookLoading} />
       </div>
 
       {/* Review Fields */}

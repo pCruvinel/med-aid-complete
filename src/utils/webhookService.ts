@@ -155,6 +155,15 @@ export const processConsultationAnalysis = async (consultationId: string, consul
 
     console.log(`Consulta ${consultationId} atualizada com os dados da análise.`);
 
+    // Simular envio do webhook de revisão com o novo formato
+    const reviewWebhookPayload = {
+      id: existingAnalysis?.id || crypto.randomUUID(), // ID específico da análise
+      consultation_id: consultationId
+    };
+
+    console.log('Payload do webhook de revisão gerado:', reviewWebhookPayload);
+    // Em produção, este payload seria enviado para o endpoint de revisão
+
   } catch (error) {
     console.error(`Erro ao processar análise da consulta ${consultationId}:`, error);
     
