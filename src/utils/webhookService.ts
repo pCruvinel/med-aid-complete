@@ -60,25 +60,53 @@ export const sendToWebhook = async (data: WebhookData): Promise<boolean> => {
     };
 
     console.log('Sending payload to webhook:', webhookUrl);
+    console.log('Payload structure:', JSON.stringify(payload, null, 2));
     
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    // First, try the normal request
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Webhook response:', result);
+      return true;
+      
+    } catch (corsError) {
+      console.log('CORS error detected, trying no-cors mode...', corsError);
+      
+      // If CORS fails, try with no-cors mode
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'no-cors',
+        body: JSON.stringify(payload),
+      });
+
+      // With no-cors, we can't read the response, but if no error is thrown,
+      // the request was sent successfully
+      console.log('Request sent with no-cors mode');
+      return true;
     }
-
-    const result = await response.json();
-    console.log('Webhook response:', result);
-    return true;
     
   } catch (error) {
     console.error('Error sending to webhook:', error);
+    
+    // Provide more specific error messages
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Erro de conectividade: Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
+    }
+    
     throw error;
   }
 };

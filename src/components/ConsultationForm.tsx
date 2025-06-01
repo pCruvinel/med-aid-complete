@@ -65,16 +65,27 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
       
       toast({
         title: "Consulta enviada com sucesso",
-        description: "Os dados foram enviados para processamento pela IA.",
+        description: "Os dados foram enviados para processamento. A solicitação foi encaminhada ao servidor.",
       });
 
       onComplete(finalData);
       
     } catch (error) {
       console.error('Error sending consultation:', error);
+      
+      let errorMessage = "Falha no envio dos dados. Tente novamente.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('conectividade')) {
+          errorMessage = "Problema de conectividade. Verifique sua internet e tente novamente.";
+        } else if (error.message.includes('CORS')) {
+          errorMessage = "Dados enviados, mas não foi possível confirmar o recebimento devido a restrições do navegador.";
+        }
+      }
+      
       toast({
         title: "Erro ao enviar consulta",
-        description: "Falha no envio dos dados. Tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
