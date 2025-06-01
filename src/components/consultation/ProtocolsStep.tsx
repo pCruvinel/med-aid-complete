@@ -1,7 +1,7 @@
 
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Protocols } from "./types";
+import { MultiSelectButton } from "./SelectionButtons";
 
 interface ProtocolsStepProps {
   protocols: Protocols;
@@ -11,73 +11,62 @@ interface ProtocolsStepProps {
 
 export const ProtocolsStep = ({ protocols, onUpdateProtocols, onUpdateSepseAdulto }: ProtocolsStepProps) => {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h3 className="text-lg font-semibold">Protocolos Gerenciados</h3>
-      <div className="space-y-4">
+      
+      <div className="space-y-6">
         <div>
-          <Label className="text-base font-medium">Sepse adulto:</Label>
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="sirs"
-                checked={protocols.sepseAdulto.sirs}
-                onCheckedChange={(checked) => onUpdateSepseAdulto('sirs', !!checked)}
-              />
-              <Label htmlFor="sirs">SIRS ≥ 2</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="disfuncao"
-                checked={protocols.sepseAdulto.disfuncao}
-                onCheckedChange={(checked) => onUpdateSepseAdulto('disfuncao', !!checked)}
-              />
-              <Label htmlFor="disfuncao">Pelo menos 1 disfunção orgânica</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="news"
-                checked={protocols.sepseAdulto.news}
-                onCheckedChange={(checked) => onUpdateSepseAdulto('news', !!checked)}
-              />
-              <Label htmlFor="news">Escore News ≥ 5</Label>
-            </div>
+          <Label className="text-base font-medium mb-4 block">Sepse adulto:</Label>
+          <div className="space-y-3">
+            <MultiSelectButton
+              checked={protocols.sepseAdulto.sirs}
+              onChange={(checked) => onUpdateSepseAdulto('sirs', checked)}
+              label="SIRS ≥ 2"
+              description="Síndrome da Resposta Inflamatória Sistêmica"
+            />
+            <MultiSelectButton
+              checked={protocols.sepseAdulto.disfuncao}
+              onChange={(checked) => onUpdateSepseAdulto('disfuncao', checked)}
+              label="Pelo menos 1 disfunção orgânica"
+              description="Presença de disfunção em algum órgão ou sistema"
+            />
+            <MultiSelectButton
+              checked={protocols.sepseAdulto.news}
+              onChange={(checked) => onUpdateSepseAdulto('news', checked)}
+              label="Escore News ≥ 5"
+              description="National Early Warning Score elevado"
+            />
           </div>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="sepse-pediatrica"
+        <div className="space-y-3">
+          <MultiSelectButton
             checked={protocols.sepsePediatrica}
-            onCheckedChange={(checked) => onUpdateProtocols('sepsePediatrica', !!checked)}
+            onChange={(checked) => onUpdateProtocols('sepsePediatrica', checked)}
+            label="Sepse pediátrica"
+            description="Protocolo específico para pacientes pediátricos"
           />
-          <Label htmlFor="sepse-pediatrica">Sepse pediátrica</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="avc"
+          
+          <MultiSelectButton
             checked={protocols.avc}
-            onCheckedChange={(checked) => onUpdateProtocols('avc', !!checked)}
+            onChange={(checked) => onUpdateProtocols('avc', checked)}
+            label="Acidente Vascular Cerebral (AVC)"
+            description="Protocolo para suspeita ou confirmação de AVC"
           />
-          <Label htmlFor="avc">Acidente Vascular Cerebral (AVC)</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="dor-toracica"
+          
+          <MultiSelectButton
             checked={protocols.dorToracica}
-            onCheckedChange={(checked) => onUpdateProtocols('dorToracica', !!checked)}
+            onChange={(checked) => onUpdateProtocols('dorToracica', checked)}
+            label="Dor torácica"
+            description="Protocolo para investigação de dor torácica"
           />
-          <Label htmlFor="dor-toracica">Dor torácica</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="nao-se-aplica"
+          
+          <MultiSelectButton
             checked={protocols.naoSeAplica}
-            onCheckedChange={(checked) => onUpdateProtocols('naoSeAplica', !!checked)}
+            onChange={(checked) => onUpdateProtocols('naoSeAplica', checked)}
+            label="Não se aplica"
+            description="Nenhum protocolo específico se aplica ao caso"
           />
-          <Label htmlFor="nao-se-aplica">Não se aplica</Label>
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
 
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ConditionalField } from "./types";
+import { SelectionButton } from "./SelectionButtons";
 
 interface HDAStepProps {
   value: string;
@@ -36,23 +36,26 @@ export const ConditionalFieldStep = ({
 }: ConditionalFieldStepProps) => (
   <div className="space-y-4">
     <h3 className="text-lg font-semibold">{title} *</h3>
-    <RadioGroup 
-      value={field.tem} 
-      onValueChange={(value) => onUpdate('tem', value)}
-      className="flex gap-6"
-    >
-      <div className="flex items-center space-x-2">
-        <RadioGroupItem value="sim" id={`${title.toLowerCase()}-sim`} />
-        <Label htmlFor={`${title.toLowerCase()}-sim`} className="cursor-pointer">SIM</Label>
-      </div>
-      <div className="flex items-center space-x-2">
-        <RadioGroupItem value="nao" id={`${title.toLowerCase()}-nao`} />
-        <Label htmlFor={`${title.toLowerCase()}-nao`} className="cursor-pointer">NÃO</Label>
-      </div>
-    </RadioGroup>
+    
+    <div className="space-y-3">
+      <SelectionButton
+        value="sim"
+        currentValue={field.tem}
+        onChange={(value) => onUpdate('tem', value)}
+        label="SIM"
+        description={`O paciente tem ${title.toLowerCase()}`}
+      />
+      <SelectionButton
+        value="nao"
+        currentValue={field.tem}
+        onChange={(value) => onUpdate('tem', value)}
+        label="NÃO"
+        description={`O paciente não tem ${title.toLowerCase()}`}
+      />
+    </div>
     
     {field.tem === 'sim' && (
-      <div>
+      <div className="mt-4">
         <Label htmlFor={`${title.toLowerCase()}-spec`}>Especificar:</Label>
         <Textarea
           id={`${title.toLowerCase()}-spec`}

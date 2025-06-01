@@ -1,8 +1,8 @@
 
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { SinaisVitais } from "./types";
+import { SelectionButton } from "./SelectionButtons";
 
 interface VitalSignsStepProps {
   sinaisVitais: SinaisVitais;
@@ -81,22 +81,24 @@ export const VitalSignsStep = ({ sinaisVitais, onUpdate }: VitalSignsStepProps) 
         </div>
       </div>
       
-      <div>
-        <Label>Alteração do Nível de Consciência</Label>
-        <RadioGroup 
-          value={sinaisVitais.alteracaoConsciencia} 
-          onValueChange={(value) => onUpdate('alteracaoConsciencia', value)}
-          className="flex gap-6 mt-2"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="sim" id="consciencia-sim" />
-            <Label htmlFor="consciencia-sim" className="cursor-pointer">SIM</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="nao" id="consciencia-nao" />
-            <Label htmlFor="consciencia-nao" className="cursor-pointer">NÃO</Label>
-          </div>
-        </RadioGroup>
+      <div className="space-y-4">
+        <Label className="text-base font-medium">Alteração do Nível de Consciência</Label>
+        <div className="space-y-3">
+          <SelectionButton
+            value="sim"
+            currentValue={sinaisVitais.alteracaoConsciencia}
+            onChange={(value) => onUpdate('alteracaoConsciencia', value)}
+            label="SIM"
+            description="O paciente apresenta alteração do nível de consciência"
+          />
+          <SelectionButton
+            value="nao"
+            currentValue={sinaisVitais.alteracaoConsciencia}
+            onChange={(value) => onUpdate('alteracaoConsciencia', value)}
+            label="NÃO"
+            description="O paciente não apresenta alteração do nível de consciência"
+          />
+        </div>
       </div>
     </div>
   );
