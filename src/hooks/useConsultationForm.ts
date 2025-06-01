@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ConsultationFormData } from "@/components/consultation/types";
 
@@ -22,14 +21,14 @@ export const useConsultationForm = () => {
       alteracaoConsciencia: '', dor: ''
     },
     exameFisico: {
-      estadoGeral: 'Paciente em regular estado geral, lúcido, orientado no tempo e no espaço, acianótico, anictérico e afebril. Pele e mucosas coradas e hidratadas.',
-      respiratorio: '- Tórax simétrico, sem deformidades. Expansibilidade pulmonar preservada. - Ausculta: Murmúrio vesicular fisiológico presente bilateral, sem ruídos adventícios.',
-      cardiovascular: '- Ausculta: Ritmo cardíaco regular em dois tempos, sem sopros.',
-      abdome: '- Abdome plano, ruídos hidroaéreos presentes, normotimpânico, indolor à palpação, sem massa ou visceromegalias, sem sinais de peritonite.',
-      extremidades: '- Extremidades superiores e inferiores sem edemas, panturrilhas livres, TEC < 3s. Pulsos palpáveis e simétricos.',
-      nervoso: '- ECG 15, Pupilas isocóricas e foto reativas. Força muscular preservada nos 4 membros (grau 5). Mímica facial preservada. Movimento extraocular preservado. Sensibilidade sem alterações.',
-      orofaringe: '- A mucosa bucal está úmida e corada, sem lesões visíveis. As amígdalas são simétricas, sem sinais de hiperemia ou exsudato. Os arcos palatinos estão sem alterações, e a faringe está clara, sem edema ou secreção purulenta.',
-      otoscopia: '- As orelhas externas estão sem alterações visíveis. O conduto auditivo externo está livre, sem secreções ou corpos estranhos. O tímpano apresenta coloração normal, está intacto, sem sinais de otite ou perfuração, e o refletor da luz está bem definido em ambos os ouvidos.'
+      estadoGeral: '',
+      respiratorio: '',
+      cardiovascular: '',
+      abdome: '',
+      extremidades: '',
+      nervoso: '',
+      orofaringe: '',
+      otoscopia: ''
     },
     hipoteseDiagnostica: '',
     conduta: '- Oriento sinais de alarme e retorno em caso de não melhora dos sintomas;\n- Prescrito sintomáticos;',
