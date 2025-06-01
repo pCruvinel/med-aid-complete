@@ -210,13 +210,16 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                       id="sirs"
                       checked={formData.protocols.sepseAdulto.sirs}
                       onCheckedChange={(checked) => 
-                        updateFormData('protocols', {
-                          ...formData.protocols,
-                          sepseAdulto: {
-                            ...formData.protocols.sepseAdulto,
-                            sirs: checked
+                        setFormData(prev => ({
+                          ...prev,
+                          protocols: {
+                            ...prev.protocols,
+                            sepseAdulto: {
+                              ...prev.protocols.sepseAdulto,
+                              sirs: !!checked
+                            }
                           }
-                        })
+                        }))
                       }
                     />
                     <Label htmlFor="sirs">SIRS ≥ 2</Label>
@@ -226,13 +229,16 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                       id="disfuncao"
                       checked={formData.protocols.sepseAdulto.disfuncao}
                       onCheckedChange={(checked) => 
-                        updateFormData('protocols', {
-                          ...formData.protocols,
-                          sepseAdulto: {
-                            ...formData.protocols.sepseAdulto,
-                            disfuncao: checked
+                        setFormData(prev => ({
+                          ...prev,
+                          protocols: {
+                            ...prev.protocols,
+                            sepseAdulto: {
+                              ...prev.protocols.sepseAdulto,
+                              disfuncao: !!checked
+                            }
                           }
-                        })
+                        }))
                       }
                     />
                     <Label htmlFor="disfuncao">Pelo menos 1 disfunção orgânica</Label>
@@ -242,13 +248,16 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                       id="news"
                       checked={formData.protocols.sepseAdulto.news}
                       onCheckedChange={(checked) => 
-                        updateFormData('protocols', {
-                          ...formData.protocols,
-                          sepseAdulto: {
-                            ...formData.protocols.sepseAdulto,
-                            news: checked
+                        setFormData(prev => ({
+                          ...prev,
+                          protocols: {
+                            ...prev.protocols,
+                            sepseAdulto: {
+                              ...prev.protocols.sepseAdulto,
+                              news: !!checked
+                            }
                           }
-                        })
+                        }))
                       }
                     />
                     <Label htmlFor="news">Escore News ≥ 5</Label>
@@ -261,10 +270,13 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="sepse-pediatrica"
                   checked={formData.protocols.sepsePediatrica}
                   onCheckedChange={(checked) => 
-                    updateFormData('protocols', {
-                      ...formData.protocols,
-                      sepsePediatrica: checked
-                    })
+                    setFormData(prev => ({
+                      ...prev,
+                      protocols: {
+                        ...prev.protocols,
+                        sepsePediatrica: !!checked
+                      }
+                    }))
                   }
                 />
                 <Label htmlFor="sepse-pediatrica">Sepse pediátrica</Label>
@@ -275,10 +287,13 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="avc"
                   checked={formData.protocols.avc}
                   onCheckedChange={(checked) => 
-                    updateFormData('protocols', {
-                      ...formData.protocols,
-                      avc: checked
-                    })
+                    setFormData(prev => ({
+                      ...prev,
+                      protocols: {
+                        ...prev.protocols,
+                        avc: !!checked
+                      }
+                    }))
                   }
                 />
                 <Label htmlFor="avc">Acidente Vascular Cerebral (AVC)</Label>
@@ -289,10 +304,13 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="dor-toracica"
                   checked={formData.protocols.dorToracica}
                   onCheckedChange={(checked) => 
-                    updateFormData('protocols', {
-                      ...formData.protocols,
-                      dorToracica: checked
-                    })
+                    setFormData(prev => ({
+                      ...prev,
+                      protocols: {
+                        ...prev.protocols,
+                        dorToracica: !!checked
+                      }
+                    }))
                   }
                 />
                 <Label htmlFor="dor-toracica">Dor torácica</Label>
@@ -303,10 +321,13 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
                   id="nao-se-aplica"
                   checked={formData.protocols.naoSeAplica}
                   onCheckedChange={(checked) => 
-                    updateFormData('protocols', {
-                      ...formData.protocols,
-                      naoSeAplica: checked
-                    })
+                    setFormData(prev => ({
+                      ...prev,
+                      protocols: {
+                        ...prev.protocols,
+                        naoSeAplica: !!checked
+                      }
+                    }))
                   }
                 />
                 <Label htmlFor="nao-se-aplica">Não se aplica</Label>
