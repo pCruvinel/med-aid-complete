@@ -1,6 +1,7 @@
 
 import { consultationService } from "@/services/consultationService";
 import { WEBHOOK_CONFIG } from "@/config/webhook";
+import { blobToBase64 } from "./audioUtils";
 
 export const sendToWebhook = async (consultationData: any) => {
   console.log('Webhook service called with data:', {
@@ -12,6 +13,19 @@ export const sendToWebhook = async (consultationData: any) => {
   });
 
   try {
+    // Convert audio blob to base64 if present
+    let audioBase64 = null;
+    let audioSize = 0;
+    let audioMimeType = 'audio/webm';
+
+    if (consultationData.audioBlob) {
+      console.log('Converting audio blob to base64...');
+      audioBase64 = await blobToBase64(consultationData.audioBlob);
+      audioSize = consultationData.audioBlob.size;
+      audioMimeType = consultationData.audioBlob.type || 'audio/webm';
+      console.log('Audio converted to base64, size:', audioSize, 'bytes');
+    }
+
     // Preparar dados para envio ao N8N
     const webhookPayload = {
       consultation: {
@@ -32,12 +46,20 @@ export const sendToWebhook = async (consultationData: any) => {
       audio: {
         hasAudio: !!consultationData.audioBlob,
         duration: consultationData.recordingDuration || 0,
-        transcription: consultationData.audioBlob ? "Áudio enviado para transcrição" : null
+        data: audioBase64,
+        mimeType: audioMimeType,
+        size: audioSize
       },
       timestamp: consultationData.timestamp || new Date().toISOString()
     };
 
-    console.log('Sending webhook payload to N8N:', webhookPayload);
+    console.log('Sending webhook payload to N8N:', {
+      ...webhookPayload,
+      audio: {
+        ...webhookPayload.audio,
+        data: audioBase64 ? `[Base64 data - ${audioSize} bytes]` : null
+      }
+    });
 
     // Fazer chamada HTTP para o webhook do N8N com timeout
     const controller = new AbortController();
@@ -75,6 +97,10 @@ export const sendToWebhook = async (consultationData: any) => {
     
     if (error.name === 'AbortError') {
       throw new Error('Timeout na chamada do webhook - verifique se o N8N está respondendo');
+    }
+    
+    if (error.message && error.message.includes('Failed to convert blob to base64')) {
+      throw new Error('Erro ao converter áudio para Base64');
     }
     
     throw new Error('Erro no processamento da consulta via webhook');
