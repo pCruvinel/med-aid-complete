@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ConsultationFormData } from "@/components/consultation/types";
 import { WEBHOOK_CONFIG } from "@/config/webhook";
+import { blobToBase64 } from "./audioUtils";
 
 export const sendToWebhook = async (consultationData: ConsultationFormData & { audioBlob?: Blob }) => {
   try {
@@ -56,41 +57,112 @@ export const sendToWebhook = async (consultationData: ConsultationFormData & { a
   }
 };
 
-export const processConsultationAnalysis = async (consultationId: string, consultationData: ConsultationFormData) => {
+export const processConsultationAnalysis = async (consultationId: string, consultationData: ConsultationFormData & { audioBlob?: Blob }) => {
   try {
     console.log(`Iniciando análise da consulta ${consultationId} via webhook...`);
 
-    // Preparar dados para envio ao webhook
-    const webhookData = {
-      consultationId,
-      patientName: consultationData.nomePaciente,
-      consultationType: consultationData.consultationType,
-      timestamp: new Date().toISOString(),
-      data: {
-        hda: consultationData.hda,
-        hipoteseDiagnostica: consultationData.hipoteseDiagnostica,
-        conduta: consultationData.conduta,
-        examesComplementares: consultationData.examesComplementares,
-        reavaliacaoMedica: consultationData.reavaliacaoMedica,
-        complementoEvolucao: consultationData.complementoEvolucao,
-        comorbidades: consultationData.comorbidades,
-        medicacoes: consultationData.medicacoes,
-        alergias: consultationData.alergias,
-        sinaisVitais: consultationData.sinaisVitais,
-        exameFisico: consultationData.exameFisico,
-        protocols: consultationData.protocols
-      }
+    // Converter áudio para Base64 se disponível
+    let audioBase64 = null;
+    if (consultationData.audioBlob) {
+      console.log('Convertendo áudio para Base64...');
+      audioBase64 = await blobToBase64(consultationData.audioBlob);
+      console.log('Áudio convertido para Base64, tamanho:', audioBase64.length);
+    }
+
+    // Mapear tipo de atendimento
+    const tipoAtendimentoMap: Record<string, string> = {
+      'avaliacao': 'Avaliação Médica',
+      'reavaliacao': 'Reavaliação Médica',
+      'complementacao': 'Complementação de Evolução'
     };
 
-    console.log('Enviando dados para webhook:', webhookData);
+    // Função para tratar campos vazios
+    const formatField = (value: any): string => {
+      if (!value || value === '' || value === null || value === undefined) {
+        return 'Vazio';
+      }
+      if (typeof value === 'object') {
+        // Para campos condicionais como comorbidades, medicações, alergias
+        if (value.tem === 'não' || value.tem === '' || !value.especificar || value.especificar === '') {
+          return 'Vazio';
+        }
+        return value.especificar || 'Vazio';
+      }
+      return String(value);
+    };
 
-    // Fazer chamada HTTP real para o webhook com retry logic
+    // Preparar dados completos para envio ao webhook
+    const webhookData = {
+      consultationId,
+      timestamp: new Date().toISOString(),
+      tipoAtendimento: tipoAtendimentoMap[consultationData.consultationType] || consultationData.consultationType,
+      nomePaciente: formatField(consultationData.nomePaciente),
+      
+      // Protocolos
+      protocols: {
+        sepseAdulto: {
+          sirs: consultationData.protocols?.sepseAdulto?.sirs || false,
+          disfuncao: consultationData.protocols?.sepseAdulto?.disfuncao || false,
+          news: consultationData.protocols?.sepseAdulto?.news || false
+        },
+        sepsePediatrica: consultationData.protocols?.sepsePediatrica || false,
+        avc: consultationData.protocols?.avc || false,
+        dorToracica: consultationData.protocols?.dorToracica || false,
+        naoSeAplica: consultationData.protocols?.naoSeAplica || false
+      },
+
+      // Dados clínicos principais
+      hda: formatField(consultationData.hda),
+      comorbidades: formatField(consultationData.comorbidades),
+      medicacoes: formatField(consultationData.medicacoes),
+      alergias: formatField(consultationData.alergias),
+
+      // Sinais vitais
+      sinaisVitais: {
+        pa1: formatField(consultationData.sinaisVitais?.pa1),
+        pa2: formatField(consultationData.sinaisVitais?.pa2),
+        fc: formatField(consultationData.sinaisVitais?.fc),
+        fr: formatField(consultationData.sinaisVitais?.fr),
+        hgt: formatField(consultationData.sinaisVitais?.hgt),
+        temperatura: formatField(consultationData.sinaisVitais?.temperatura),
+        alteracaoConsciencia: formatField(consultationData.sinaisVitais?.alteracaoConsciencia),
+        dor: formatField(consultationData.sinaisVitais?.dor)
+      },
+
+      // Exame físico
+      exameFisico: {
+        estadoGeral: formatField(consultationData.exameFisico?.estadoGeral),
+        respiratorio: formatField(consultationData.exameFisico?.respiratorio),
+        cardiovascular: formatField(consultationData.exameFisico?.cardiovascular),
+        abdome: formatField(consultationData.exameFisico?.abdome),
+        extremidades: formatField(consultationData.exameFisico?.extremidades),
+        nervoso: formatField(consultationData.exameFisico?.nervoso),
+        orofaringe: formatField(consultationData.exameFisico?.orofaringe),
+        otoscopia: formatField(consultationData.exameFisico?.otoscopia)
+      },
+
+      // Avaliação e conduta
+      hipoteseDiagnostica: formatField(consultationData.hipoteseDiagnostica),
+      conduta: formatField(consultationData.conduta),
+      examesComplementares: formatField(consultationData.examesComplementares),
+      reavaliacaoMedica: formatField(consultationData.reavaliacaoMedica),
+      complementoEvolucao: formatField(consultationData.complementoEvolucao),
+
+      // Áudio em Base64
+      audioBase64: audioBase64
+    };
+
+    console.log('Enviando dados completos para webhook:', {
+      ...webhookData,
+      audioBase64: audioBase64 ? `[Base64 String - ${audioBase64.length} chars]` : null
+    });
+
+    // Fazer chamada HTTP real para o webhook
     const analysisData = await makeWebhookRequest(webhookData);
 
     console.log(`Análise da consulta ${consultationId} concluída. Dados recebidos:`, analysisData);
 
     // Atualizar consulta no Supabase APENAS com os dados da análise da IA
-    // Os campos originais já foram preservados na criação inicial
     await supabase.from('consultations')
       .update({
         hda: analysisData['História da Doença Atual (HDA)'] || analysisData.hda,
@@ -114,9 +186,9 @@ export const processConsultationAnalysis = async (consultationId: string, consul
   } catch (error) {
     console.error(`Erro ao processar análise da consulta ${consultationId}:`, error);
     
-    // Atualizar status da consulta para erro
+    // Atualizar status da consulta para erro - mantém em análise para retry manual
     await supabase.from('consultations')
-      .update({ status: 'pending-review' })
+      .update({ status: 'generating-analysis' })
       .eq('id', consultationId);
     
     throw error;
@@ -164,16 +236,9 @@ const makeWebhookRequest = async (data: any, retryCount = 0): Promise<any> => {
       return makeWebhookRequest(data, retryCount + 1);
     }
 
-    // Se esgotaram as tentativas, usar dados simulados como fallback
-    console.error('Todas as tentativas de webhook falharam. Usando dados simulados como fallback.');
-    return {
-      'História da Doença Atual (HDA)': 'Análise da HDA pela IA (fallback após falha no webhook)...',
-      'Hipótese Diagnóstica': 'Sugestão de hipótese diagnóstica da IA (fallback)...',
-      'Conduta': 'Sugestão de conduta da IA (fallback)...',
-      'Comorbidades': 'Comorbidades identificadas pela IA (fallback)...',
-      'Medicações de Uso Contínuo': 'Medicações identificadas pela IA (fallback)...',
-      'Alergias': 'Alergias identificadas pela IA (fallback)...'
-    };
+    // Se esgotaram as tentativas, lançar erro - sem fallback mockup
+    console.error('Todas as tentativas de webhook falharam. Não há dados mockup - funcionalidade real apenas.');
+    throw new Error(`Falha na comunicação com o webhook após ${WEBHOOK_CONFIG.MAX_RETRIES + 1} tentativas: ${error.message}`);
   }
 };
 
