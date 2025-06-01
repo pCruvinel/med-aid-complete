@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,48 +59,48 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
 
       setConsultation(consultationData);
 
-      // Mapear dados originais do médico e sugestões da IA
+      // Mapear dados originais do médico vs sugestões da IA
       const mappedData: ReviewData = {
         hda: {
-          doctor: consultationData.hda || '',
-          ai: consultationData.hda || '', // Se não houver análise da IA, usar dados originais
+          doctor: consultationData.hda_original || 'Não informado',
+          ai: consultationData.hda || 'Análise não disponível',
           selected: 'doctor'
         },
         comorbidades: {
-          doctor: typeof consultationData.comorbidades === 'object' 
-            ? consultationData.comorbidades?.especificar || '' 
-            : consultationData.comorbidades || '',
+          doctor: typeof consultationData.comorbidades_original === 'object' 
+            ? consultationData.comorbidades_original?.especificar || 'Não informado'
+            : consultationData.comorbidades_original || 'Não informado',
           ai: typeof consultationData.comorbidades === 'object' 
-            ? consultationData.comorbidades?.especificar || ''
-            : consultationData.comorbidades || '',
+            ? consultationData.comorbidades?.especificar || 'Análise não disponível'
+            : consultationData.comorbidades || 'Análise não disponível',
           selected: 'doctor'
         },
         medicacoes: {
-          doctor: typeof consultationData.medicacoes === 'object' 
-            ? consultationData.medicacoes?.especificar || ''
-            : consultationData.medicacoes || '',
+          doctor: typeof consultationData.medicacoes_original === 'object' 
+            ? consultationData.medicacoes_original?.especificar || 'Não informado'
+            : consultationData.medicacoes_original || 'Não informado',
           ai: typeof consultationData.medicacoes === 'object' 
-            ? consultationData.medicacoes?.especificar || ''
-            : consultationData.medicacoes || '',
+            ? consultationData.medicacoes?.especificar || 'Análise não disponível'
+            : consultationData.medicacoes || 'Análise não disponível',
           selected: 'doctor'
         },
         alergias: {
-          doctor: typeof consultationData.alergias === 'object' 
-            ? consultationData.alergias?.especificar || ''
-            : consultationData.alergias || '',
+          doctor: typeof consultationData.alergias_original === 'object' 
+            ? consultationData.alergias_original?.especificar || 'Não informado'
+            : consultationData.alergias_original || 'Não informado',
           ai: typeof consultationData.alergias === 'object' 
-            ? consultationData.alergias?.especificar || ''
-            : consultationData.alergias || '',
+            ? consultationData.alergias?.especificar || 'Análise não disponível'
+            : consultationData.alergias || 'Análise não disponível',
           selected: 'doctor'
         },
         hipoteseDiagnostica: {
-          doctor: consultationData.hipotese_diagnostica || '',
-          ai: consultationData.hipotese_diagnostica || '',
+          doctor: consultationData.hipotese_diagnostica_original || 'Não informado',
+          ai: consultationData.hipotese_diagnostica || 'Análise não disponível',
           selected: 'doctor'
         },
         conduta: {
-          doctor: consultationData.conduta || '',
-          ai: consultationData.conduta || '',
+          doctor: consultationData.conduta_original || 'Não informado',
+          ai: consultationData.conduta || 'Análise não disponível',
           selected: 'doctor'
         }
       };

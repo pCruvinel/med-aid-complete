@@ -24,6 +24,13 @@ export interface ConsultationRecord {
   sinais_vitais?: any;
   exame_fisico?: any;
   recording_duration?: number;
+  // Campos originais do médico
+  hda_original?: string;
+  hipotese_diagnostica_original?: string;
+  conduta_original?: string;
+  comorbidades_original?: any;
+  medicacoes_original?: any;
+  alergias_original?: any;
   created_at: string;
   updated_at: string;
 }
@@ -46,6 +53,13 @@ const mapDatabaseToConsultation = (dbRecord: DatabaseConsultation): Consultation
   sinais_vitais: dbRecord.sinais_vitais || undefined,
   exame_fisico: dbRecord.exame_fisico || undefined,
   recording_duration: dbRecord.recording_duration || undefined,
+  // Campos originais
+  hda_original: dbRecord.hda_original || undefined,
+  hipotese_diagnostica_original: dbRecord.hipotese_diagnostica_original || undefined,
+  conduta_original: dbRecord.conduta_original || undefined,
+  comorbidades_original: dbRecord.comorbidades_original || undefined,
+  medicacoes_original: dbRecord.medicacoes_original || undefined,
+  alergias_original: dbRecord.alergias_original || undefined,
   created_at: dbRecord.created_at,
   updated_at: dbRecord.updated_at,
 });
@@ -84,7 +98,7 @@ export const consultationService = {
     const consultationData: DatabaseConsultationInsert = {
       patient_name: formData.nomePaciente,
       consultation_type: formData.consultationType,
-      status: 'generating-analysis', // Mudança aqui: inicia com 'generating-analysis'
+      status: 'generating-analysis',
       hda: formData.hda,
       hipotese_diagnostica: formData.hipoteseDiagnostica,
       conduta: formData.conduta,
@@ -97,7 +111,14 @@ export const consultationService = {
       alergias: formData.alergias as any,
       sinais_vitais: formData.sinaisVitais as any,
       exame_fisico: formData.exameFisico as any,
-      recording_duration: recordingDuration
+      recording_duration: recordingDuration,
+      // Preservar dados originais
+      hda_original: formData.hda,
+      hipotese_diagnostica_original: formData.hipoteseDiagnostica,
+      conduta_original: formData.conduta,
+      comorbidades_original: formData.comorbidades as any,
+      medicacoes_original: formData.medicacoes as any,
+      alergias_original: formData.alergias as any
     };
 
     const { data, error } = await supabase

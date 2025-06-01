@@ -23,6 +23,13 @@ export const sendToWebhook = async (consultationData: ConsultationFormData & { a
       sinais_vitais: consultationData.sinaisVitais as any,
       exame_fisico: consultationData.exameFisico as any,
       protocols: consultationData.protocols as any,
+      // Preservar dados originais do médico
+      hda_original: consultationData.hda,
+      hipotese_diagnostica_original: consultationData.hipoteseDiagnostica,
+      conduta_original: consultationData.conduta,
+      comorbidades_original: consultationData.comorbidades as any,
+      medicacoes_original: consultationData.medicacoes as any,
+      alergias_original: consultationData.alergias as any,
       status: 'generating-analysis'
     };
 
@@ -68,7 +75,8 @@ export const processConsultationAnalysis = async (consultationId: string, consul
 
     console.log(`Análise da consulta ${consultationId} concluída. Dados recebidos:`, analysisData);
 
-    // Atualizar consulta no Supabase com os dados da análise
+    // Atualizar consulta no Supabase APENAS com os dados da análise da IA
+    // Os campos originais já foram preservados na criação inicial
     await supabase.from('consultations')
       .update({
         hda: analysisData['História da Doença Atual (HDA)'],

@@ -50,17 +50,23 @@ export type Database = {
       consultations: {
         Row: {
           alergias: Json | null
+          alergias_original: Json | null
           comorbidades: Json | null
+          comorbidades_original: Json | null
           complemento_evolucao: string | null
           conduta: string | null
+          conduta_original: string | null
           consultation_type: string
           created_at: string
           exame_fisico: Json | null
           exames_complementares: string | null
           hda: string | null
+          hda_original: string | null
           hipotese_diagnostica: string | null
+          hipotese_diagnostica_original: string | null
           id: string
           medicacoes: Json | null
+          medicacoes_original: Json | null
           patient_name: string
           protocols: Json | null
           reavaliacao_medica: string | null
@@ -71,17 +77,23 @@ export type Database = {
         }
         Insert: {
           alergias?: Json | null
+          alergias_original?: Json | null
           comorbidades?: Json | null
+          comorbidades_original?: Json | null
           complemento_evolucao?: string | null
           conduta?: string | null
+          conduta_original?: string | null
           consultation_type: string
           created_at?: string
           exame_fisico?: Json | null
           exames_complementares?: string | null
           hda?: string | null
+          hda_original?: string | null
           hipotese_diagnostica?: string | null
+          hipotese_diagnostica_original?: string | null
           id?: string
           medicacoes?: Json | null
+          medicacoes_original?: Json | null
           patient_name: string
           protocols?: Json | null
           reavaliacao_medica?: string | null
@@ -92,17 +104,23 @@ export type Database = {
         }
         Update: {
           alergias?: Json | null
+          alergias_original?: Json | null
           comorbidades?: Json | null
+          comorbidades_original?: Json | null
           complemento_evolucao?: string | null
           conduta?: string | null
+          conduta_original?: string | null
           consultation_type?: string
           created_at?: string
           exame_fisico?: Json | null
           exames_complementares?: string | null
           hda?: string | null
+          hda_original?: string | null
           hipotese_diagnostica?: string | null
+          hipotese_diagnostica_original?: string | null
           id?: string
           medicacoes?: Json | null
+          medicacoes_original?: Json | null
           patient_name?: string
           protocols?: Json | null
           reavaliacao_medica?: string | null
