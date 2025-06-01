@@ -3,6 +3,23 @@ import { consultationService } from "@/services/consultationService";
 import { WEBHOOK_CONFIG } from "@/config/webhook";
 import { blobToBase64 } from "./audioUtils";
 
+// Função para normalizar valores null/undefined/vazios para 'vazio'
+const normalizeValue = (value: any): any => {
+  if (value === null || value === undefined || value === '') {
+    return 'vazio';
+  }
+  
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const normalized: any = {};
+    for (const key in value) {
+      normalized[key] = normalizeValue(value[key]);
+    }
+    return normalized;
+  }
+  
+  return value;
+};
+
 export const sendToWebhook = async (consultationData: any) => {
   console.log('Webhook service called with data:', {
     nomePaciente: consultationData.nomePaciente,
@@ -26,22 +43,77 @@ export const sendToWebhook = async (consultationData: any) => {
       console.log('Audio converted to base64, size:', audioSize, 'bytes');
     }
 
-    // Preparar dados para envio ao N8N
+    // Preparar dados completos para envio ao N8N com todos os campos
     const webhookPayload = {
       consultation: {
-        patient_name: consultationData.nomePaciente,
-        consultation_type: consultationData.consultationType,
-        hda: consultationData.hda,
-        comorbidades: consultationData.comorbidades,
-        medicacoes: consultationData.medicacoes,
-        alergias: consultationData.alergias,
-        sinais_vitais: consultationData.sinaisVitais,
-        exame_fisico: consultationData.exameFisico,
-        hipotese_diagnostica: consultationData.hipoteseDiagnostica,
-        conduta: consultationData.conduta,
-        exames_complementares: consultationData.examesComplementares,
-        protocols: consultationData.protocols,
-        recording_duration: consultationData.recordingDuration
+        patient_name: normalizeValue(consultationData.nomePaciente),
+        consultation_type: normalizeValue(consultationData.consultationType),
+        hda: normalizeValue(consultationData.hda),
+        
+        // Comorbidades completas
+        comorbidades: {
+          tem: normalizeValue(consultationData.comorbidades?.tem),
+          especificar: normalizeValue(consultationData.comorbidades?.especificar)
+        },
+        
+        // Medicações completas
+        medicacoes: {
+          tem: normalizeValue(consultationData.medicacoes?.tem),
+          especificar: normalizeValue(consultationData.medicacoes?.especificar)
+        },
+        
+        // Alergias completas
+        alergias: {
+          tem: normalizeValue(consultationData.alergias?.tem),
+          especificar: normalizeValue(consultationData.alergias?.especificar)
+        },
+        
+        // Sinais vitais completos
+        sinais_vitais: {
+          pa1: normalizeValue(consultationData.sinaisVitais?.pa1),
+          pa2: normalizeValue(consultationData.sinaisVitais?.pa2),
+          fc: normalizeValue(consultationData.sinaisVitais?.fc),
+          fr: normalizeValue(consultationData.sinaisVitais?.fr),
+          hgt: normalizeValue(consultationData.sinaisVitais?.hgt),
+          temperatura: normalizeValue(consultationData.sinaisVitais?.temperatura),
+          alteracaoConsciencia: normalizeValue(consultationData.sinaisVitais?.alteracaoConsciencia),
+          dor: normalizeValue(consultationData.sinaisVitais?.dor)
+        },
+        
+        // Exame físico completo
+        exame_fisico: {
+          estadoGeral: normalizeValue(consultationData.exameFisico?.estadoGeral),
+          respiratorio: normalizeValue(consultationData.exameFisico?.respiratorio),
+          cardiovascular: normalizeValue(consultationData.exameFisico?.cardiovascular),
+          abdome: normalizeValue(consultationData.exameFisico?.abdome),
+          extremidades: normalizeValue(consultationData.exameFisico?.extremidades),
+          nervoso: normalizeValue(consultationData.exameFisico?.nervoso),
+          orofaringe: normalizeValue(consultationData.exameFisico?.orofaringe),
+          otoscopia: normalizeValue(consultationData.exameFisico?.otoscopia)
+        },
+        
+        // Protocolos completos
+        protocols: {
+          sepseAdulto: {
+            sirs: normalizeValue(consultationData.protocols?.sepseAdulto?.sirs),
+            disfuncao: normalizeValue(consultationData.protocols?.sepseAdulto?.disfuncao),
+            news: normalizeValue(consultationData.protocols?.sepseAdulto?.news)
+          },
+          sepsePediatrica: normalizeValue(consultationData.protocols?.sepsePediatrica),
+          avc: normalizeValue(consultationData.protocols?.avc),
+          dorToracica: normalizeValue(consultationData.protocols?.dorToracica),
+          naoSeAplica: normalizeValue(consultationData.protocols?.naoSeAplica)
+        },
+        
+        // Campos de diagnóstico e conduta
+        hipotese_diagnostica: normalizeValue(consultationData.hipoteseDiagnostica),
+        conduta: normalizeValue(consultationData.conduta),
+        exames_complementares: normalizeValue(consultationData.examesComplementares),
+        reavaliacao_medica: normalizeValue(consultationData.reavaliacaoMedica),
+        complemento_evolucao: normalizeValue(consultationData.complementoEvolucao),
+        
+        // Duração da gravação
+        recording_duration: normalizeValue(consultationData.recordingDuration)
       },
       audio: {
         hasAudio: !!consultationData.audioBlob,
