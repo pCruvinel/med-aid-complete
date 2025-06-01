@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Check, Edit, Bot, User, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Check, Edit, Bot, User, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { consultationService, ConsultationRecord } from "@/services/consultationService";
 import { generateFinalDocument } from "@/utils/webhookService";
@@ -42,6 +41,32 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
     loadConsultationData();
   }, [consultationId]);
 
+  const extractFieldValue = (data: any, fieldName: string): string => {
+    if (!data) {
+      console.log(`${fieldName}: dados não encontrados`);
+      return 'Não informado';
+    }
+    
+    if (typeof data === 'string') {
+      const result = data.trim() || 'Não informado';
+      console.log(`${fieldName} (string):`, result);
+      return result;
+    }
+    
+    if (typeof data === 'object') {
+      if (data.tem === 'não' || data.tem === '' || !data.especificar || data.especificar === '') {
+        console.log(`${fieldName} (object - sem dados):`, 'Não informado');
+        return 'Não informado';
+      }
+      const result = data.especificar || 'Não informado';
+      console.log(`${fieldName} (object):`, result);
+      return result;
+    }
+    
+    console.log(`${fieldName} (other):`, 'Não informado');
+    return 'Não informado';
+  };
+
   const loadConsultationData = async () => {
     try {
       setLoading(true);
@@ -57,53 +82,65 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
         return;
       }
 
+      console.log('=== DADOS DA CONSULTA ===');
+      console.log('Consulta completa:', consultationData);
+      console.log('Status:', consultationData.status);
+      
+      // Log detalhado dos campos originais vs processados
+      console.log('=== CAMPOS ORIGINAIS (MÉDICO) ===');
+      console.log('HDA original:', consultationData.hda_original);
+      console.log('Comorbidades original:', consultationData.comorbidades_original);
+      console.log('Medicações original:', consultationData.medicacoes_original);
+      console.log('Alergias original:', consultationData.alergias_original);
+      console.log('Hipótese original:', consultationData.hipotese_diagnostica_original);
+      console.log('Conduta original:', consultationData.conduta_original);
+      
+      console.log('=== CAMPOS PROCESSADOS (IA) ===');
+      console.log('HDA processada:', consultationData.hda);
+      console.log('Comorbidades processada:', consultationData.comorbidades);
+      console.log('Medicações processada:', consultationData.medicacoes);
+      console.log('Alergias processada:', consultationData.alergias);
+      console.log('Hipótese processada:', consultationData.hipotese_diagnostica);
+      console.log('Conduta processada:', consultationData.conduta);
+
       setConsultation(consultationData);
 
-      // Mapear dados originais do médico vs sugestões da IA
+      // Mapear dados originais do médico vs sugestões da IA CORRETAMENTE
       const mappedData: ReviewData = {
         hda: {
-          doctor: consultationData.hda_original || 'Não informado',
-          ai: consultationData.hda || 'Análise não disponível',
+          doctor: extractFieldValue(consultationData.hda_original, 'HDA original'),
+          ai: extractFieldValue(consultationData.hda, 'HDA IA'),
           selected: 'doctor'
         },
         comorbidades: {
-          doctor: typeof consultationData.comorbidades_original === 'object' 
-            ? consultationData.comorbidades_original?.especificar || 'Não informado'
-            : consultationData.comorbidades_original || 'Não informado',
-          ai: typeof consultationData.comorbidades === 'object' 
-            ? consultationData.comorbidades?.especificar || 'Análise não disponível'
-            : consultationData.comorbidades || 'Análise não disponível',
+          doctor: extractFieldValue(consultationData.comorbidades_original, 'Comorbidades original'),
+          ai: extractFieldValue(consultationData.comorbidades, 'Comorbidades IA'),
           selected: 'doctor'
         },
         medicacoes: {
-          doctor: typeof consultationData.medicacoes_original === 'object' 
-            ? consultationData.medicacoes_original?.especificar || 'Não informado'
-            : consultationData.medicacoes_original || 'Não informado',
-          ai: typeof consultationData.medicacoes === 'object' 
-            ? consultationData.medicacoes?.especificar || 'Análise não disponível'
-            : consultationData.medicacoes || 'Análise não disponível',
+          doctor: extractFieldValue(consultationData.medicacoes_original, 'Medicações original'),
+          ai: extractFieldValue(consultationData.medicacoes, 'Medicações IA'),
           selected: 'doctor'
         },
         alergias: {
-          doctor: typeof consultationData.alergias_original === 'object' 
-            ? consultationData.alergias_original?.especificar || 'Não informado'
-            : consultationData.alergias_original || 'Não informado',
-          ai: typeof consultationData.alergias === 'object' 
-            ? consultationData.alergias?.especificar || 'Análise não disponível'
-            : consultationData.alergias || 'Análise não disponível',
+          doctor: extractFieldValue(consultationData.alergias_original, 'Alergias original'),
+          ai: extractFieldValue(consultationData.alergias, 'Alergias IA'),
           selected: 'doctor'
         },
         hipoteseDiagnostica: {
-          doctor: consultationData.hipotese_diagnostica_original || 'Não informado',
-          ai: consultationData.hipotese_diagnostica || 'Análise não disponível',
+          doctor: extractFieldValue(consultationData.hipotese_diagnostica_original, 'Hipótese original'),
+          ai: extractFieldValue(consultationData.hipotese_diagnostica, 'Hipótese IA'),
           selected: 'doctor'
         },
         conduta: {
-          doctor: consultationData.conduta_original || 'Não informado',
-          ai: consultationData.conduta || 'Análise não disponível',
+          doctor: extractFieldValue(consultationData.conduta_original, 'Conduta original'),
+          ai: extractFieldValue(consultationData.conduta, 'Conduta IA'),
           selected: 'doctor'
         }
       };
+
+      console.log('=== DADOS MAPEADOS PARA INTERFACE ===');
+      console.log('ReviewData mapeada:', mappedData);
 
       setReviewData(mappedData);
     } catch (error) {
@@ -216,11 +253,20 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
     field: ReviewFieldData
   ) => {
     const isEditing = editingField === `${fieldKey}-doctor` || editingField === `${fieldKey}-ai`;
+    const hasAiData = field.ai !== 'Não informado' && field.ai !== 'Análise não disponível';
     
     return (
       <Card key={fieldKey} className="bg-white shadow-sm border border-gray-200">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold text-gray-900">{title}</CardTitle>
+          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center justify-between">
+            {title}
+            {!hasAiData && (
+              <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                IA não processou
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Doctor's Response */}
@@ -232,7 +278,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <User className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-600">Sua Resposta</span>
+                <span className="text-sm font-medium text-blue-600">Sua Resposta Original</span>
                 {field.selected === 'doctor' && (
                   <Badge className="bg-blue-100 text-blue-800 border-0">
                     <Check className="w-3 h-3 mr-1" />
@@ -275,7 +321,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
               </div>
             ) : (
               <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {field.doctor || 'Não informado'}
+                {field.doctor}
               </p>
             )}
           </div>
@@ -284,13 +330,17 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
           <div className={`p-4 rounded-lg border-2 transition-all ${
             field.selected === 'ai' 
               ? 'border-green-500 bg-green-50' 
-              : 'border-gray-200 hover:border-green-300'
+              : hasAiData 
+                ? 'border-gray-200 hover:border-green-300'
+                : 'border-gray-100 bg-gray-50'
           }`}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
-                <Bot className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-600">Sugestão da IA</span>
-                {field.selected === 'ai' && (
+                <Bot className={`w-4 h-4 ${hasAiData ? 'text-green-600' : 'text-gray-400'}`} />
+                <span className={`text-sm font-medium ${hasAiData ? 'text-green-600' : 'text-gray-500'}`}>
+                  Sugestão da IA
+                </span>
+                {field.selected === 'ai' && hasAiData && (
                   <Badge className="bg-green-100 text-green-800 border-0">
                     <Check className="w-3 h-3 mr-1" />
                     Selecionada
@@ -303,6 +353,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
                   variant="outline"
                   onClick={() => handleFieldSelect(fieldKey, 'ai')}
                   className={field.selected === 'ai' ? 'bg-green-100' : ''}
+                  disabled={!hasAiData}
                 >
                   Usar Esta
                 </Button>
@@ -310,6 +361,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
                   size="sm"
                   variant="ghost"
                   onClick={() => handleEdit(fieldKey, 'ai')}
+                  disabled={!hasAiData}
                 >
                   <Edit className="w-3 h-3" />
                 </Button>
@@ -331,8 +383,8 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {field.ai || 'Não informado'}
+              <p className={`text-sm whitespace-pre-wrap ${hasAiData ? 'text-gray-700' : 'text-gray-500 italic'}`}>
+                {field.ai}
               </p>
             )}
           </div>
@@ -368,6 +420,27 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
     );
   }
 
+  // Verificar se a consulta ainda está sendo processada
+  if (consultation.status === 'generating-analysis') {
+    return (
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="flex items-center justify-center min-h-64">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">A IA ainda está processando esta consulta...</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Isso pode levar alguns minutos. A página será atualizada automaticamente.
+            </p>
+            <Button onClick={onBack} variant="outline" className="mt-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar à Lista
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto p-6">
       {/* Header */}
@@ -384,7 +457,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
                 Paciente: {consultation.patient_name} • {consultation.consultation_type}
               </p>
               <p className="text-sm text-gray-500">
-                Compare suas respostas com as sugestões da IA e escolha a melhor opção
+                Compare suas respostas originais com as sugestões da IA e escolha a melhor opção
               </p>
             </div>
           </div>
@@ -428,7 +501,7 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="font-medium">Respostas suas selecionadas:</span>
+              <span className="font-medium">Respostas originais selecionadas:</span>
               <span className="ml-2 text-blue-600">
                 {Object.values(reviewData).filter(field => field.selected === 'doctor').length}
               </span>
