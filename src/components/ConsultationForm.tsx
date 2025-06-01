@@ -1,141 +1,31 @@
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Mic, MicOff, ArrowLeft, ArrowRight, Save, StopCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-interface ConsultationFormProps {
-  onComplete: (data: any) => void;
-  onCancel: () => void;
-}
+import { useRecording } from "@/hooks/useRecording";
+import { useConsultationForm } from "@/hooks/useConsultationForm";
+import { ConsultationTypeStep } from "./consultation/ConsultationTypeStep";
+import { ProtocolsStep } from "./consultation/ProtocolsStep";
+import { VitalSignsStep } from "./consultation/VitalSignsStep";
+import { ConsultationFormProps } from "./consultation/types";
 
 export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [formData, setFormData] = useState({
-    consultationType: '',
-    protocols: {
-      sepseAdulto: { sirs: false, disfuncao: false, news: false },
-      sepsePediatrica: false,
-      avc: false,
-      dorToracica: false,
-      naoSeAplica: false
-    },
-    hda: '',
-    comorbidades: { tem: '', especificar: '' },
-    medicacoes: { tem: '', especificar: '' },
-    alergias: { tem: '', especificar: '' },
-    sinaisVitais: {
-      pa1: '', pa2: '', fc: '', fr: '', hgt: '', temperatura: '',
-      alteracaoConsciencia: '', dor: ''
-    },
-    exameFisico: {
-      estadoGeral: 'Paciente em regular estado geral, lúcido, orientado no tempo e no espaço, acianótico, anictérico e afebril. Pele e mucosas coradas e hidratadas.',
-      respiratorio: '- Tórax simétrico, sem deformidades. Expansibilidade pulmonar preservada. - Ausculta: Murmúrio vesicular fisiológico presente bilateral, sem ruídos adventícios.',
-      cardiovascular: '- Ausculta: Ritmo cardíaco regular em dois tempos, sem sopros.',
-      abdome: '- Abdome plano, ruídos hidroaéreos presentes, normotimpânico, indolor à palpação, sem massa ou visceromegalias, sem sinais de peritonite.',
-      extremidades: '- Extremidades superiores e inferiores sem edemas, panturrilhas livres, TEC < 3s. Pulsos palpáveis e simétricos.',
-      nervoso: '- ECG 15, Pupilas isocóricas e foto reativas. Força muscular preservada nos 4 membros (grau 5). Mímica facial preservada. Movimento extraocular preservado. Sensibilidade sem alterações.',
-      orofaringe: '- A mucosa bucal está úmida e corada, sem lesões visíveis. As amígdalas são simétricas, sem sinais de hiperemia ou exsudato. Os arcos palatinos estão sem alterações, e a faringe está clara, sem edema ou secreção purulenta.',
-      otoscopia: '- As orelhas externas estão sem alterações visíveis. O conduto auditivo externo está livre, sem secreções ou corpos estranhos. O tímpano apresenta coloração normal, está intacto, sem sinais de otite ou perfuração, e o refletor da luz está bem definido em ambos os ouvidos.'
-    },
-    hipoteseDiagnostica: '',
-    conduta: '- Oriento sinais de alarme e retorno em caso de não melhora dos sintomas;\n- Prescrito sintomáticos;',
-    examesComplementares: '',
-    reavaliacaoMedica: '',
-    complementoEvolucao: ''
-  });
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { formData, updateFormData, updateNestedFormData, updateProtocols, updateSepseAdulto } = useConsultationForm();
+  const { isRecording, recordingTime, startRecording, stopRecording, formatTime, getAudioBlob } = useRecording();
 
   const totalSteps = 12;
   const progress = (currentStep / totalSteps) * 100;
 
   useEffect(() => {
-    // Auto-start recording when form opens
     startRecording();
-    return () => {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
-    };
   }, []);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-
-      toast({
-        title: "Gravação iniciada",
-        description: "O áudio da consulta está sendo gravado automaticamente.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao iniciar gravação",
-        description: "Não foi possível acessar o microfone.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
-
-      // Stop all audio tracks
-      if (mediaRecorderRef.current.stream) {
-        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      }
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const updateFormData = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const updateNestedFormData = (parent: string, field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [parent]: { ...prev[parent as keyof typeof prev], [field]: value }
-    }));
-  };
 
   const canProceed = () => {
     switch (currentStep) {
@@ -153,10 +43,9 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
   const handleFinish = () => {
     stopRecording();
     
-    // Prepare final data
     const finalData = {
       ...formData,
-      audioBlob: audioChunksRef.current.length > 0 ? new Blob(audioChunksRef.current, { type: 'audio/webm' }) : null,
+      audioBlob: getAudioBlob(),
       recordingDuration: recordingTime,
       timestamp: new Date().toISOString()
     };
@@ -175,165 +64,19 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Tipo de Atendimento</h3>
-            <RadioGroup 
-              value={formData.consultationType} 
-              onValueChange={(value) => updateFormData('consultationType', value)}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="avaliacao" id="avaliacao" />
-                <Label htmlFor="avaliacao">Avaliação médica</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="reavaliacao" id="reavaliacao" />
-                <Label htmlFor="reavaliacao">Reavaliação médica</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="complementacao" id="complementacao" />
-                <Label htmlFor="complementacao">Complementação evolução</Label>
-              </div>
-            </RadioGroup>
-          </div>
+          <ConsultationTypeStep 
+            value={formData.consultationType}
+            onChange={(value) => updateFormData('consultationType', value)}
+          />
         );
 
       case 2:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Protocolos Gerenciados</h3>
-            <div className="space-y-4">
-              <div>
-                <Label className="text-base font-medium">Sepse adulto:</Label>
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="sirs"
-                      checked={formData.protocols.sepseAdulto.sirs}
-                      onCheckedChange={(checked) => 
-                        setFormData(prev => ({
-                          ...prev,
-                          protocols: {
-                            ...prev.protocols,
-                            sepseAdulto: {
-                              ...prev.protocols.sepseAdulto,
-                              sirs: !!checked
-                            }
-                          }
-                        }))
-                      }
-                    />
-                    <Label htmlFor="sirs">SIRS ≥ 2</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="disfuncao"
-                      checked={formData.protocols.sepseAdulto.disfuncao}
-                      onCheckedChange={(checked) => 
-                        setFormData(prev => ({
-                          ...prev,
-                          protocols: {
-                            ...prev.protocols,
-                            sepseAdulto: {
-                              ...prev.protocols.sepseAdulto,
-                              disfuncao: !!checked
-                            }
-                          }
-                        }))
-                      }
-                    />
-                    <Label htmlFor="disfuncao">Pelo menos 1 disfunção orgânica</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="news"
-                      checked={formData.protocols.sepseAdulto.news}
-                      onCheckedChange={(checked) => 
-                        setFormData(prev => ({
-                          ...prev,
-                          protocols: {
-                            ...prev.protocols,
-                            sepseAdulto: {
-                              ...prev.protocols.sepseAdulto,
-                              news: !!checked
-                            }
-                          }
-                        }))
-                      }
-                    />
-                    <Label htmlFor="news">Escore News ≥ 5</Label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="sepse-pediatrica"
-                  checked={formData.protocols.sepsePediatrica}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({
-                      ...prev,
-                      protocols: {
-                        ...prev.protocols,
-                        sepsePediatrica: !!checked
-                      }
-                    }))
-                  }
-                />
-                <Label htmlFor="sepse-pediatrica">Sepse pediátrica</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="avc"
-                  checked={formData.protocols.avc}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({
-                      ...prev,
-                      protocols: {
-                        ...prev.protocols,
-                        avc: !!checked
-                      }
-                    }))
-                  }
-                />
-                <Label htmlFor="avc">Acidente Vascular Cerebral (AVC)</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="dor-toracica"
-                  checked={formData.protocols.dorToracica}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({
-                      ...prev,
-                      protocols: {
-                        ...prev.protocols,
-                        dorToracica: !!checked
-                      }
-                    }))
-                  }
-                />
-                <Label htmlFor="dor-toracica">Dor torácica</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="nao-se-aplica"
-                  checked={formData.protocols.naoSeAplica}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({
-                      ...prev,
-                      protocols: {
-                        ...prev.protocols,
-                        naoSeAplica: !!checked
-                      }
-                    }))
-                  }
-                />
-                <Label htmlFor="nao-se-aplica">Não se aplica</Label>
-              </div>
-            </div>
-          </div>
+          <ProtocolsStep 
+            protocols={formData.protocols}
+            onUpdateProtocols={updateProtocols}
+            onUpdateSepseAdulto={updateSepseAdulto}
+          />
         );
 
       case 3:
@@ -450,94 +193,10 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
 
       case 7:
         return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Exame Físico - Sinais Vitais</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>PA (mmHg)</Label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    placeholder="120"
-                    value={formData.sinaisVitais.pa1}
-                    onChange={(e) => updateNestedFormData('sinaisVitais', 'pa1', e.target.value)}
-                  />
-                  <span>/</span>
-                  <Input
-                    placeholder="80"
-                    value={formData.sinaisVitais.pa2}
-                    onChange={(e) => updateNestedFormData('sinaisVitais', 'pa2', e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label>FC (BPM)</Label>
-                <Input
-                  placeholder="72"
-                  value={formData.sinaisVitais.fc}
-                  onChange={(e) => updateNestedFormData('sinaisVitais', 'fc', e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <Label>FR (IRPM)</Label>
-                <Input
-                  placeholder="16"
-                  value={formData.sinaisVitais.fr}
-                  onChange={(e) => updateNestedFormData('sinaisVitais', 'fr', e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <Label>HGT (mg/dl)</Label>
-                <Input
-                  placeholder="90"
-                  value={formData.sinaisVitais.hgt}
-                  onChange={(e) => updateNestedFormData('sinaisVitais', 'hgt', e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <Label>Temperatura (°C)</Label>
-                <Input
-                  placeholder="36.5"
-                  value={formData.sinaisVitais.temperatura}
-                  onChange={(e) => updateNestedFormData('sinaisVitais', 'temperatura', e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <Label>Dor (0-10)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="10"
-                  placeholder="0"
-                  value={formData.sinaisVitais.dor}
-                  onChange={(e) => updateNestedFormData('sinaisVitais', 'dor', e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <Label>Alteração do Nível de Consciência</Label>
-              <RadioGroup 
-                value={formData.sinaisVitais.alteracaoConsciencia} 
-                onValueChange={(value) => updateNestedFormData('sinaisVitais', 'alteracaoConsciencia', value)}
-                className="mt-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="sim" id="consciencia-sim" />
-                  <Label htmlFor="consciencia-sim">SIM</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nao" id="consciencia-nao" />
-                  <Label htmlFor="consciencia-nao">NÃO</Label>
-                </div>
-              </RadioGroup>
-            </div>
-          </div>
+          <VitalSignsStep 
+            sinaisVitais={formData.sinaisVitais}
+            onUpdate={(field, value) => updateNestedFormData('sinaisVitais', field, value)}
+          />
         );
 
       case 8:
@@ -616,18 +275,17 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
     }
   };
 
-  // Skip steps based on consultation type
   const getNextStep = () => {
     if (currentStep === 10) {
       if (formData.consultationType === 'reavaliacao') return 11;
       if (formData.consultationType === 'complementacao') return 12;
-      return totalSteps + 1; // End
+      return totalSteps + 1;
     }
     if (currentStep === 11 && formData.consultationType === 'reavaliacao') {
-      return totalSteps + 1; // End
+      return totalSteps + 1;
     }
     if (currentStep === 12 && formData.consultationType === 'complementacao') {
-      return totalSteps + 1; // End
+      return totalSteps + 1;
     }
     return currentStep + 1;
   };
@@ -672,7 +330,6 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
@@ -683,7 +340,6 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
             <h1 className="text-2xl font-bold text-gray-900">Nova Consulta</h1>
           </div>
           
-          {/* Recording Status */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               {isRecording ? (
@@ -709,7 +365,6 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
           </div>
         </div>
 
-        {/* Progress */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-gray-600">
             <span>Etapa {currentStep} de {totalSteps}</span>
@@ -719,14 +374,12 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
         </div>
       </div>
 
-      {/* Form Content */}
       <Card className="bg-white shadow-lg border-0">
         <CardContent className="p-6">
           {renderStep()}
         </CardContent>
       </Card>
 
-      {/* Navigation */}
       <div className="flex justify-between mt-6">
         <Button
           onClick={() => setCurrentStep(getPrevStep())}
