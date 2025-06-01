@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, Check, Edit, Bot, User, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { consultationService, ConsultationRecord } from "@/services/consultationService";
+import { consultationService, ConsultationRecord, AiAnalysisRecord } from "@/services/consultationService";
 import { generateFinalDocument } from "@/utils/webhookService";
 
 interface ReviewInterfaceProps {
@@ -32,6 +33,7 @@ interface ReviewData {
 export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewInterfaceProps) => {
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
   const [consultation, setConsultation] = useState<ConsultationRecord | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -70,6 +72,8 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
   const loadConsultationData = async () => {
     try {
       setLoading(true);
+      
+      // Carregar dados da consulta
       const consultationData = await consultationService.getConsultationById(consultationId);
       
       if (!consultationData) {
@@ -82,59 +86,47 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
         return;
       }
 
+      // Carregar análise da IA
+      const aiAnalysisData = await consultationService.getAiAnalysis(consultationId);
+
       console.log('=== DADOS DA CONSULTA ===');
       console.log('Consulta completa:', consultationData);
+      console.log('Análise da IA:', aiAnalysisData);
       console.log('Status:', consultationData.status);
-      
-      // Log detalhado dos campos originais vs processados
-      console.log('=== CAMPOS ORIGINAIS (MÉDICO) ===');
-      console.log('HDA original:', consultationData.hda_original);
-      console.log('Comorbidades original:', consultationData.comorbidades_original);
-      console.log('Medicações original:', consultationData.medicacoes_original);
-      console.log('Alergias original:', consultationData.alergias_original);
-      console.log('Hipótese original:', consultationData.hipotese_diagnostica_original);
-      console.log('Conduta original:', consultationData.conduta_original);
-      
-      console.log('=== CAMPOS PROCESSADOS (IA) ===');
-      console.log('HDA processada:', consultationData.hda);
-      console.log('Comorbidades processada:', consultationData.comorbidades);
-      console.log('Medicações processada:', consultationData.medicacoes);
-      console.log('Alergias processada:', consultationData.alergias);
-      console.log('Hipótese processada:', consultationData.hipotese_diagnostica);
-      console.log('Conduta processada:', consultationData.conduta);
 
       setConsultation(consultationData);
+      setAiAnalysis(aiAnalysisData);
 
-      // Mapear dados originais do médico vs sugestões da IA CORRETAMENTE
+      // Mapear dados originais do médico vs sugestões da IA usando a nova estrutura
       const mappedData: ReviewData = {
         hda: {
           doctor: extractFieldValue(consultationData.hda_original, 'HDA original'),
-          ai: extractFieldValue(consultationData.hda, 'HDA IA'),
+          ai: extractFieldValue(aiAnalysisData?.hda_ai, 'HDA IA'),
           selected: 'doctor'
         },
         comorbidades: {
           doctor: extractFieldValue(consultationData.comorbidades_original, 'Comorbidades original'),
-          ai: extractFieldValue(consultationData.comorbidades, 'Comorbidades IA'),
+          ai: extractFieldValue(aiAnalysisData?.comorbidades_ai, 'Comorbidades IA'),
           selected: 'doctor'
         },
         medicacoes: {
           doctor: extractFieldValue(consultationData.medicacoes_original, 'Medicações original'),
-          ai: extractFieldValue(consultationData.medicacoes, 'Medicações IA'),
+          ai: extractFieldValue(aiAnalysisData?.medicacoes_ai, 'Medicações IA'),
           selected: 'doctor'
         },
         alergias: {
           doctor: extractFieldValue(consultationData.alergias_original, 'Alergias original'),
-          ai: extractFieldValue(consultationData.alergias, 'Alergias IA'),
+          ai: extractFieldValue(aiAnalysisData?.alergias_ai, 'Alergias IA'),
           selected: 'doctor'
         },
         hipoteseDiagnostica: {
           doctor: extractFieldValue(consultationData.hipotese_diagnostica_original, 'Hipótese original'),
-          ai: extractFieldValue(consultationData.hipotese_diagnostica, 'Hipótese IA'),
+          ai: extractFieldValue(aiAnalysisData?.hipotese_diagnostica_ai, 'Hipótese IA'),
           selected: 'doctor'
         },
         conduta: {
           doctor: extractFieldValue(consultationData.conduta_original, 'Conduta original'),
-          ai: extractFieldValue(consultationData.conduta, 'Conduta IA'),
+          ai: extractFieldValue(aiAnalysisData?.conduta_ai, 'Conduta IA'),
           selected: 'doctor'
         }
       };

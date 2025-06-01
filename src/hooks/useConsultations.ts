@@ -69,7 +69,6 @@ export const useConsultations = () => {
         consultation.id === consultationId 
           ? { ...consultation, ...updates }
           : consultation
-      )
     );
   };
 

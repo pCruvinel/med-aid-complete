@@ -9,6 +9,62 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_analysis: {
+        Row: {
+          alergias_ai: string | null
+          analysis_timestamp: string
+          comorbidades_ai: string | null
+          conduta_ai: string | null
+          consultation_id: string
+          created_at: string
+          hda_ai: string | null
+          hipotese_diagnostica_ai: string | null
+          id: string
+          medicacoes_ai: string | null
+          processing_status: string
+          updated_at: string
+          webhook_attempts: number
+        }
+        Insert: {
+          alergias_ai?: string | null
+          analysis_timestamp?: string
+          comorbidades_ai?: string | null
+          conduta_ai?: string | null
+          consultation_id: string
+          created_at?: string
+          hda_ai?: string | null
+          hipotese_diagnostica_ai?: string | null
+          id?: string
+          medicacoes_ai?: string | null
+          processing_status?: string
+          updated_at?: string
+          webhook_attempts?: number
+        }
+        Update: {
+          alergias_ai?: string | null
+          analysis_timestamp?: string
+          comorbidades_ai?: string | null
+          conduta_ai?: string | null
+          consultation_id?: string
+          created_at?: string
+          hda_ai?: string | null
+          hipotese_diagnostica_ai?: string | null
+          id?: string
+          medicacoes_ai?: string | null
+          processing_status?: string
+          updated_at?: string
+          webhook_attempts?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audio_recordings: {
         Row: {
           consultation_id: string | null
@@ -51,6 +107,8 @@ export type Database = {
         Row: {
           alergias: Json | null
           alergias_original: Json | null
+          analysis_completed_at: string | null
+          analysis_started_at: string | null
           comorbidades: Json | null
           comorbidades_original: Json | null
           complemento_evolucao: string | null
@@ -74,10 +132,13 @@ export type Database = {
           sinais_vitais: Json | null
           status: string
           updated_at: string
+          webhook_lock_id: string | null
         }
         Insert: {
           alergias?: Json | null
           alergias_original?: Json | null
+          analysis_completed_at?: string | null
+          analysis_started_at?: string | null
           comorbidades?: Json | null
           comorbidades_original?: Json | null
           complemento_evolucao?: string | null
@@ -101,10 +162,13 @@ export type Database = {
           sinais_vitais?: Json | null
           status?: string
           updated_at?: string
+          webhook_lock_id?: string | null
         }
         Update: {
           alergias?: Json | null
           alergias_original?: Json | null
+          analysis_completed_at?: string | null
+          analysis_started_at?: string | null
           comorbidades?: Json | null
           comorbidades_original?: Json | null
           complemento_evolucao?: string | null
@@ -128,6 +192,7 @@ export type Database = {
           sinais_vitais?: Json | null
           status?: string
           updated_at?: string
+          webhook_lock_id?: string | null
         }
         Relationships: []
       }

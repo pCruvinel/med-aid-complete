@@ -3,52 +3,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { ConsultationFormData } from "@/components/consultation/types";
 import { WEBHOOK_CONFIG } from "@/config/webhook";
 import { blobToBase64 } from "./audioUtils";
+import { consultationService } from "@/services/consultationService";
 
 export const sendToWebhook = async (consultationData: ConsultationFormData & { audioBlob?: Blob }) => {
   try {
     console.log('Enviando dados para webhook...', consultationData);
 
-    // Save consultation to database first
-    const consultationInsert = {
-      patient_name: consultationData.nomePaciente,
-      consultation_type: consultationData.consultationType,
-      hda: consultationData.hda,
-      hipotese_diagnostica: consultationData.hipoteseDiagnostica,
-      conduta: consultationData.conduta,
-      exames_complementares: consultationData.examesComplementares,
-      reavaliacao_medica: consultationData.reavaliacaoMedica,
-      complemento_evolucao: consultationData.complementoEvolucao,
-      comorbidades: consultationData.comorbidades as any,
-      medicacoes: consultationData.medicacoes as any,
-      alergias: consultationData.alergias as any,
-      sinais_vitais: consultationData.sinaisVitais as any,
-      exame_fisico: consultationData.exameFisico as any,
-      protocols: consultationData.protocols as any,
-      // Preservar dados originais do médico
-      hda_original: consultationData.hda,
-      hipotese_diagnostica_original: consultationData.hipoteseDiagnostica,
-      conduta_original: consultationData.conduta,
-      comorbidades_original: consultationData.comorbidades as any,
-      medicacoes_original: consultationData.medicacoes as any,
-      alergias_original: consultationData.alergias as any,
-      status: 'generating-analysis'
-    };
+    // Criar a consulta primeiro
+    const consultation = await consultationService.createConsultation(
+      consultationData, 
+      consultationData.audioBlob ? 60 : 0
+    );
 
-    const { data: consultation, error: insertError } = await supabase
-      .from('consultations')
-      .insert(consultationInsert)
-      .select()
-      .single();
+    console.log('Consulta criada com ID:', consultation.id);
 
-    if (insertError) {
-      console.error('Erro ao salvar consulta:', insertError);
-      throw new Error('Falha ao salvar consulta no banco de dados');
+    // Tentar adquirir lock para análise
+    const canStartAnalysis = await consultationService.startAnalysis(consultation.id);
+    
+    if (!canStartAnalysis) {
+      console.log('Análise já está em andamento para esta consulta');
+      return consultation;
     }
 
-    console.log('Consulta salva com ID:', consultation.id);
-
-    // Start analysis process
-    await processConsultationAnalysis(consultation.id, consultationData);
+    // Iniciar análise de forma assíncrona
+    processConsultationAnalysis(consultation.id, consultationData).catch(error => {
+      console.error('Erro na análise assíncrona:', error);
+      consultationService.releaseAnalysisLock(consultation.id);
+    });
 
     return consultation;
   } catch (error) {
@@ -60,6 +41,13 @@ export const sendToWebhook = async (consultationData: ConsultationFormData & { a
 export const processConsultationAnalysis = async (consultationId: string, consultationData: ConsultationFormData & { audioBlob?: Blob }) => {
   try {
     console.log(`Iniciando análise da consulta ${consultationId} via webhook...`);
+
+    // Verificar se análise já foi completada
+    const existingAnalysis = await consultationService.getAiAnalysis(consultationId);
+    if (existingAnalysis && existingAnalysis.processing_status === 'completed') {
+      console.log(`Análise já foi completada para consulta ${consultationId}`);
+      return;
+    }
 
     // Converter áudio para Base64 se disponível
     let audioBase64 = null;
@@ -162,34 +150,16 @@ export const processConsultationAnalysis = async (consultationId: string, consul
 
     console.log(`Análise da consulta ${consultationId} concluída. Dados recebidos:`, analysisData);
 
-    // Atualizar consulta no Supabase APENAS com os dados da análise da IA
-    await supabase.from('consultations')
-      .update({
-        hda: analysisData['História da Doença Atual (HDA)'] || analysisData.hda,
-        hipotese_diagnostica: analysisData['Hipótese Diagnóstica'] || analysisData.hipoteseDiagnostica,
-        conduta: analysisData['Conduta'] || analysisData.conduta,
-        comorbidades: analysisData['Comorbidades'] ? 
-          { tem: 'sim', especificar: analysisData['Comorbidades'] } :
-          (analysisData.comorbidades || { tem: 'não', especificar: '' }),
-        medicacoes: analysisData['Medicações de Uso Contínuo'] ? 
-          { tem: 'sim', especificar: analysisData['Medicações de Uso Contínuo'] } :
-          (analysisData.medicacoes || { tem: 'não', especificar: '' }),
-        alergias: analysisData['Alergias'] ? 
-          { tem: 'sim', especificar: analysisData['Alergias'] } :
-          (analysisData.alergias || { tem: 'não', especificar: '' }),
-        status: 'pending-review'
-      })
-      .eq('id', consultationId);
+    // Salvar análise da IA na nova tabela
+    await consultationService.saveAiAnalysis(consultationId, analysisData);
 
     console.log(`Consulta ${consultationId} atualizada com os dados da análise.`);
 
   } catch (error) {
     console.error(`Erro ao processar análise da consulta ${consultationId}:`, error);
     
-    // Atualizar status da consulta para erro - mantém em análise para retry manual
-    await supabase.from('consultations')
-      .update({ status: 'generating-analysis' })
-      .eq('id', consultationId);
+    // Em caso de erro, liberar o lock
+    await consultationService.releaseAnalysisLock(consultationId);
     
     throw error;
   }

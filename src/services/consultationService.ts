@@ -1,10 +1,10 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ConsultationFormData } from "@/components/consultation/types";
 import { Database } from "@/integrations/supabase/types";
 
 type DatabaseConsultation = Database['public']['Tables']['consultations']['Row'];
 type DatabaseConsultationInsert = Database['public']['Tables']['consultations']['Insert'];
+type DatabaseAiAnalysis = Database['public']['Tables']['ai_analysis']['Row'];
 
 export interface ConsultationRecord {
   id: string;
@@ -31,6 +31,26 @@ export interface ConsultationRecord {
   comorbidades_original?: any;
   medicacoes_original?: any;
   alergias_original?: any;
+  // Campos de controle de análise
+  analysis_started_at?: string;
+  analysis_completed_at?: string;
+  webhook_lock_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiAnalysisRecord {
+  id: string;
+  consultation_id: string;
+  hda_ai?: string;
+  comorbidades_ai?: string;
+  medicacoes_ai?: string;
+  alergias_ai?: string;
+  hipotese_diagnostica_ai?: string;
+  conduta_ai?: string;
+  analysis_timestamp: string;
+  webhook_attempts: number;
+  processing_status: string;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +80,10 @@ const mapDatabaseToConsultation = (dbRecord: DatabaseConsultation): Consultation
   comorbidades_original: dbRecord.comorbidades_original || undefined,
   medicacoes_original: dbRecord.medicacoes_original || undefined,
   alergias_original: dbRecord.alergias_original || undefined,
+  // Campos de controle
+  analysis_started_at: dbRecord.analysis_started_at || undefined,
+  analysis_completed_at: dbRecord.analysis_completed_at || undefined,
+  webhook_lock_id: dbRecord.webhook_lock_id || undefined,
   created_at: dbRecord.created_at,
   updated_at: dbRecord.updated_at,
 });
@@ -92,6 +116,21 @@ export const consultationService = {
     }
 
     return data ? mapDatabaseToConsultation(data) : null;
+  },
+
+  async getAiAnalysis(consultationId: string): Promise<AiAnalysisRecord | null> {
+    const { data, error } = await supabase
+      .from('ai_analysis')
+      .select('*')
+      .eq('consultation_id', consultationId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching AI analysis:', error);
+      throw error;
+    }
+
+    return data as AiAnalysisRecord | null;
   },
 
   async createConsultation(formData: ConsultationFormData, recordingDuration: number): Promise<ConsultationRecord> {
@@ -147,23 +186,93 @@ export const consultationService = {
     }
   },
 
-  async updateConsultationWithAnalysis(id: string, analysisData: any): Promise<void> {
-    const { error } = await supabase
+  async startAnalysis(consultationId: string): Promise<boolean> {
+    // Gerar um UUID único para o lock
+    const lockId = crypto.randomUUID();
+    
+    // Tentar adquirir o lock atomicamente
+    const { data, error } = await supabase
       .from('consultations')
-      .update({
-        hda: analysisData['História da Doença Atual (HDA)'],
-        hipotese_diagnostica: analysisData['Hipótese Diagnóstica'],
-        conduta: analysisData['Conduta'],
-        comorbidades: { tem: 'sim', especificar: analysisData['Comorbidades'] },
-        medicacoes: { tem: 'sim', especificar: analysisData['Medicações de Uso Contínuo'] },
-        alergias: { tem: 'sim', especificar: analysisData['Alergias'] },
-        status: 'pending-review'
+      .update({ 
+        webhook_lock_id: lockId,
+        analysis_started_at: new Date().toISOString()
       })
-      .eq('id', id);
+      .eq('id', consultationId)
+      .is('webhook_lock_id', null)
+      .select()
+      .maybeSingle();
 
     if (error) {
-      console.error('Error updating consultation with analysis:', error);
+      console.error('Error acquiring analysis lock:', error);
+      return false;
+    }
+
+    // Se não conseguiu adquirir o lock, análise já está em andamento
+    if (!data) {
+      console.log(`Analysis already in progress for consultation ${consultationId}`);
+      return false;
+    }
+
+    console.log(`Analysis lock acquired for consultation ${consultationId} with lock ID ${lockId}`);
+    return true;
+  },
+
+  async saveAiAnalysis(consultationId: string, analysisData: any): Promise<void> {
+    try {
+      // Inserir ou atualizar análise da IA
+      const { error: analysisError } = await supabase
+        .from('ai_analysis')
+        .upsert({
+          consultation_id: consultationId,
+          hda_ai: analysisData['História da Doença Atual (HDA)'] || analysisData.hda,
+          hipotese_diagnostica_ai: analysisData['Hipótese Diagnóstica'] || analysisData.hipoteseDiagnostica,
+          conduta_ai: analysisData['Conduta'] || analysisData.conduta,
+          comorbidades_ai: analysisData['Comorbidades'] || analysisData.comorbidades,
+          medicacoes_ai: analysisData['Medicações de Uso Contínuo'] || analysisData.medicacoes,
+          alergias_ai: analysisData['Alergias'] || analysisData.alergias,
+          processing_status: 'completed'
+        });
+
+      if (analysisError) {
+        console.error('Error saving AI analysis:', analysisError);
+        throw analysisError;
+      }
+
+      // Atualizar status da consulta
+      const { error: consultationError } = await supabase
+        .from('consultations')
+        .update({ 
+          status: 'pending-review',
+          analysis_completed_at: new Date().toISOString(),
+          webhook_lock_id: null // Liberar o lock
+        })
+        .eq('id', consultationId);
+
+      if (consultationError) {
+        console.error('Error updating consultation status:', consultationError);
+        throw consultationError;
+      }
+
+      console.log(`AI analysis saved successfully for consultation ${consultationId}`);
+    } catch (error) {
+      // Em caso de erro, liberar o lock
+      await supabase
+        .from('consultations')
+        .update({ webhook_lock_id: null })
+        .eq('id', consultationId);
+      
       throw error;
+    }
+  },
+
+  async releaseAnalysisLock(consultationId: string): Promise<void> {
+    const { error } = await supabase
+      .from('consultations')
+      .update({ webhook_lock_id: null })
+      .eq('id', consultationId);
+
+    if (error) {
+      console.error('Error releasing analysis lock:', error);
     }
   },
 
