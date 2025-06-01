@@ -1,6 +1,6 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import { consultationService } from "@/services/consultationService";
+import { WEBHOOK_CONFIG } from "@/config/webhook";
 
 export const sendToWebhook = async (consultationData: any) => {
   console.log('Webhook service called with data:', {
@@ -12,43 +12,72 @@ export const sendToWebhook = async (consultationData: any) => {
   });
 
   try {
-    // Simular transcrição de áudio (em um cenário real, você usaria um serviço de transcrição)
-    let audioTranscription = null;
-    if (consultationData.audioBlob) {
-      audioTranscription = "Transcrição simulada do áudio da consulta médica...";
-    }
+    // Preparar dados para envio ao N8N
+    const webhookPayload = {
+      consultation: {
+        patient_name: consultationData.nomePaciente,
+        consultation_type: consultationData.consultationType,
+        hda: consultationData.hda,
+        comorbidades: consultationData.comorbidades,
+        medicacoes: consultationData.medicacoes,
+        alergias: consultationData.alergias,
+        sinais_vitais: consultationData.sinaisVitais,
+        exame_fisico: consultationData.exameFisico,
+        hipotese_diagnostica: consultationData.hipoteseDiagnostica,
+        conduta: consultationData.conduta,
+        exames_complementares: consultationData.examesComplementares,
+        protocols: consultationData.protocols,
+        recording_duration: consultationData.recordingDuration
+      },
+      audio: {
+        hasAudio: !!consultationData.audioBlob,
+        duration: consultationData.recordingDuration || 0,
+        transcription: consultationData.audioBlob ? "Áudio enviado para transcrição" : null
+      },
+      timestamp: consultationData.timestamp || new Date().toISOString()
+    };
 
-    // Chamar a Edge Function para análise
-    const { data, error } = await supabase.functions.invoke('analyze-consultation', {
-      body: {
-        consultationData: {
-          patient_name: consultationData.nomePaciente,
-          consultation_type: consultationData.consultationType,
-          hda: consultationData.hda,
-          comorbidades: consultationData.comorbidades,
-          medicacoes: consultationData.medicacoes,
-          alergias: consultationData.alergias,
-          sinais_vitais: consultationData.sinaisVitais,
-          exame_fisico: consultationData.exameFisico,
-        },
-        audioTranscription
-      }
+    console.log('Sending webhook payload to N8N:', webhookPayload);
+
+    // Fazer chamada HTTP para o webhook do N8N com timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_CONFIG.TIMEOUT);
+
+    const response = await fetch(WEBHOOK_CONFIG.N8N_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(webhookPayload),
+      signal: controller.signal
     });
 
-    if (error) {
-      console.error('Error calling analyze-consultation function:', error);
-      throw new Error('Erro ao processar análise da consulta');
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Webhook call failed with status: ${response.status}`);
     }
 
-    console.log('Analysis result:', data);
-    
+    const result = await response.json();
+    console.log('Webhook response from N8N:', result);
+
+    // Verificar se a resposta tem o formato esperado
+    if (!result || !result.output) {
+      throw new Error('Resposta do webhook não está no formato esperado');
+    }
+
     return { 
       success: true, 
-      analysis: data.output 
+      analysis: result.output 
     };
   } catch (error) {
     console.error('Webhook error:', error);
-    throw new Error('Erro no processamento da consulta');
+    
+    if (error.name === 'AbortError') {
+      throw new Error('Timeout na chamada do webhook - verifique se o N8N está respondendo');
+    }
+    
+    throw new Error('Erro no processamento da consulta via webhook');
   }
 };
 
@@ -56,17 +85,17 @@ export const processConsultationAnalysis = async (consultationId: string, consul
   try {
     console.log('Starting analysis processing for consultation:', consultationId);
     
-    // Chamar o webhook para processar a análise
+    // Chamar o webhook N8N para processar a análise
     const result = await sendToWebhook(consultationData);
     
     if (result.success && result.analysis) {
-      // Atualizar a consulta com os dados da análise
+      // Atualizar a consulta com os dados da análise retornados pelo N8N
       await consultationService.updateConsultationWithAnalysis(consultationId, result.analysis);
       
       console.log('Consultation analysis completed and saved for:', consultationId);
       return { success: true };
     } else {
-      throw new Error('Análise não foi gerada corretamente');
+      throw new Error('Análise não foi gerada corretamente pelo N8N');
     }
   } catch (error) {
     console.error('Error processing consultation analysis:', error);
