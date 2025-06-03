@@ -139,7 +139,14 @@ export const consultationService = {
   },
 
   async getAiAnalysisById(analysisId: string): Promise<AiAnalysisRecord | null> {
-    console.log(`Buscando análise de IA por ID: ${analysisId}`);
+    // Apenas remover espaços, NÃO converter para minúsculas
+    const normalizedId = analysisId.trim();
+    console.log(`[consultationService] Buscando análise de IA:`, {
+      idOriginal: analysisId,
+      idNormalizado: normalizedId,
+      tamanho: analysisId.length,
+      tamanhoNormalizado: normalizedId.length
+    });
     
     const { data, error } = await supabase
       .from('ai_analysis')
@@ -158,20 +165,58 @@ export const consultationService = {
         created_at,
         updated_at
       `)
-      .eq('id', analysisId)
+      .eq('id', normalizedId)
       .maybeSingle();
 
     if (error) {
-      console.error('Erro ao buscar análise da IA por ID:', error);
+      console.error('[consultationService] Erro ao buscar análise da IA por ID:', error);
+      console.error('Detalhes do erro:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
+      // Tentar listar todas as análises para debug
+      console.log('Tentando listar análises recentes para debug...');
+      const { data: recentAnalyses } = await supabase
+        .from('ai_analysis')
+        .select('id, consultation_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (recentAnalyses) {
+        console.log('Análises recentes no banco:', recentAnalyses);
+      }
+      
       throw new Error(`Falha ao recuperar análise da IA: ${error.message}`);
     }
 
     if (!data) {
-      console.warn(`Análise da IA não encontrada para ID: ${analysisId}`);
+      console.warn(`[consultationService] Análise da IA não encontrada para ID: ${normalizedId}`);
+      
+      // Tentar listar análises recentes para debug
+      const { data: recentAnalyses } = await supabase
+        .from('ai_analysis')
+        .select('id, consultation_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (recentAnalyses) {
+        console.log('Análises recentes no banco (não encontrou o ID):', recentAnalyses);
+      }
+      
       return null;
     }
 
-    console.log('Análise da IA recuperada com sucesso:', data);
+    console.log('[consultationService] Análise da IA recuperada com sucesso:', {
+      id: data.id,
+      consultation_id: data.consultation_id,
+      tem_dados: !!(data.hda_ai || data.comorbidades_ai || data.medicacoes_ai || 
+                   data.alergias_ai || data.hipotese_diagnostica_ai || data.conduta_ai),
+      processing_status: data.processing_status
+    });
+    
     return data as AiAnalysisRecord;
   },
 

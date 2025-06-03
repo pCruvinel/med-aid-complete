@@ -1,10 +1,8 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { useRecording } from "@/hooks/useRecording";
 import { useConsultationForm } from "@/hooks/useConsultationForm";
-import { sendToWebhook } from "@/utils/webhookService";
 
 // Import step components
 import { PatientNameStep } from "./consultation/PatientNameStep";
@@ -135,37 +133,27 @@ export const ConsultationForm = ({ onComplete, onCancel }: ConsultationFormProps
         fieldsCount: Object.keys(finalData).length
       });
       
-      // Send to webhook
-      await sendToWebhook(finalData);
-      
-      toast({
-        title: "Consulta enviada com sucesso",
-        description: "Os dados foram enviados para processamento. A gravação foi finalizada automaticamente.",
-      });
-
+      // Pass data to parent component - webhook will be called there
       onComplete(finalData);
       
+      toast({
+        title: "Consulta finalizada",
+        description: "Processando os dados...",
+      });
+      
     } catch (error) {
-      console.error('Error sending consultation:', error);
-      
-      let errorMessage = "Falha no envio dos dados. Tente novamente.";
-      
-      if (error instanceof Error) {
-        if (error.message.includes('conectividade')) {
-          errorMessage = "Problema de conectividade. Verifique sua internet e tente novamente.";
-        } else if (error.message.includes('CORS')) {
-          errorMessage = "Dados enviados, mas não foi possível confirmar o recebimento devido a restrições do navegador.";
-        }
-      }
+      console.error('Error preparing consultation data:', error);
       
       toast({
-        title: "Erro ao enviar consulta",
-        description: errorMessage,
+        title: "Erro ao finalizar consulta",
+        description: "Falha ao preparar os dados. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
+      
       setIsSending(false);
     }
+    // Note: setIsSending(false) is NOT called here on success
+    // because the component will unmount when onComplete is called
   };
 
   const renderStep = () => {

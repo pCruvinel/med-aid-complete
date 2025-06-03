@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, Check, Edit, Bot, User, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { consultationService, ConsultationRecord, AiAnalysisRecord } from "@/services/consultationService";
-import { generateFinalDocument } from "@/utils/webhookService";
-import { AiSuggestionsSection } from "./AiSuggestionsSection";
+import { generateAndSaveDocument } from "@/utils/documentService";
 import { useReviewWebhook } from "@/hooks/useReviewWebhook";
+import { DocumentGeneratingLoader } from "./DocumentGeneratingLoader";
 
 interface ReviewInterfaceProps {
   consultationId: string;
@@ -200,49 +200,44 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
   };
 
   const handleGenerateDocument = async () => {
-    if (!reviewData || !consultation) return;
+    if (!reviewData || !consultation || !aiAnalysis) return;
 
     try {
       setGeneratingDocument(true);
 
-      // Preparar dados finais para o webhook de geração do documento
-      const finalData = {
-        consultationId,
-        patientName: consultation.patient_name,
-        consultationType: consultation.consultation_type,
-        reviewedData: {
+      // Preparar dados selecionados para o webhook de geração do documento
+      const selectedData = {
+        id_consulta: consultationId,
+        id_analysis: aiAnalysis.id,
+        dados_selecionados: {
           hda: reviewData.hda.selected === 'doctor' ? reviewData.hda.doctor : reviewData.hda.ai,
           comorbidades: reviewData.comorbidades.selected === 'doctor' ? reviewData.comorbidades.doctor : reviewData.comorbidades.ai,
           medicacoes: reviewData.medicacoes.selected === 'doctor' ? reviewData.medicacoes.doctor : reviewData.medicacoes.ai,
           alergias: reviewData.alergias.selected === 'doctor' ? reviewData.alergias.doctor : reviewData.alergias.ai,
-          hipoteseDiagnostica: reviewData.hipoteseDiagnostica.selected === 'doctor' ? reviewData.hipoteseDiagnostica.doctor : reviewData.hipoteseDiagnostica.ai,
+          hipotese_diagnostica: reviewData.hipoteseDiagnostica.selected === 'doctor' ? reviewData.hipoteseDiagnostica.doctor : reviewData.hipoteseDiagnostica.ai,
           conduta: reviewData.conduta.selected === 'doctor' ? reviewData.conduta.doctor : reviewData.conduta.ai,
-        },
-        selectedSources: {
-          hda: reviewData.hda.selected,
-          comorbidades: reviewData.comorbidades.selected,
-          medicacoes: reviewData.medicacoes.selected,
-          alergias: reviewData.alergias.selected,
-          hipoteseDiagnostica: reviewData.hipoteseDiagnostica.selected,
-          conduta: reviewData.conduta.selected,
-        },
-        timestamp: new Date().toISOString()
+        }
       };
 
-      console.log('Enviando dados finais para geração do documento:', finalData);
+      console.log('Enviando dados para geração do documento:', selectedData);
       
-      // Chamar o edge function para gerar o documento final
-      const result = await generateFinalDocument(finalData);
+      // Chamar o novo webhook para gerar o documento
+      const result = await generateAndSaveDocument(selectedData);
 
-      if (result.success) {
+      if (result && result.success) {
+        console.log('Documento gerado e salvo com sucesso:', result);
+        
         toast({
           title: "Documento gerado com sucesso",
-          description: "O documento final foi criado e a consulta foi finalizada.",
+          description: "O documento foi aberto em uma nova janela para impressão.",
         });
+
+        // Atualizar status da consulta para completed
+        await consultationService.updateConsultationStatus(consultationId, 'completed');
 
         onComplete();
       } else {
-        throw new Error(result.error || 'Erro desconhecido');
+        throw new Error('Falha ao gerar documento');
       }
     } catch (error) {
       console.error('Error generating document:', error);
@@ -522,11 +517,6 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
         )}
       </div>
 
-      {/* Seção de Sugestões da IA */}
-      <div className="mb-8">
-        <AiSuggestionsSection aiAnalysis={aiAnalysis} loading={webhookLoading} />
-      </div>
-
       {/* Review Fields */}
       <div className="space-y-6">
         {renderField("História da Doença Atual (HDA)", "hda", reviewData.hda)}
@@ -562,6 +552,11 @@ export const ReviewInterface = ({ consultationId, onBack, onComplete }: ReviewIn
           </p>
         </CardContent>
       </Card>
+
+      {/* Document Generating Loader */}
+      {generatingDocument && (
+        <DocumentGeneratingLoader patientName={consultation.patient_name} />
+      )}
     </div>
   );
 };

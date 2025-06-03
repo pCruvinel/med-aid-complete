@@ -1,177 +1,143 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ConsultationFormData } from "@/components/consultation/types";
 import { WEBHOOK_CONFIG } from "@/config/webhook";
 import { blobToBase64 } from "./audioUtils";
-import { consultationService } from "@/services/consultationService";
+import { consultationService, WebhookPayload } from "@/services/consultationService";
 
-export const sendToWebhook = async (consultationData: ConsultationFormData & { audioBlob?: Blob }) => {
+export const sendToWebhook = async (consultationData: any) => {
   try {
-    console.log('Enviando dados para webhook...', consultationData);
-
-    // Criar a consulta primeiro
-    const consultation = await consultationService.createConsultation(
-      consultationData, 
-      consultationData.audioBlob ? 60 : 0
-    );
-
-    console.log('Consulta criada com ID:', consultation.id);
-
-    // Tentar adquirir lock para análise
-    const canStartAnalysis = await consultationService.startAnalysis(consultation.id);
-    
-    if (!canStartAnalysis) {
-      console.log('Análise já está em andamento para esta consulta');
-      return consultation;
-    }
-
-    // Iniciar análise de forma assíncrona
-    processConsultationAnalysis(consultation.id, consultationData).catch(error => {
-      console.error('Erro na análise assíncrona:', error);
-      consultationService.releaseAnalysisLock(consultation.id);
+    console.log('=== INICIANDO ENVIO PARA WEBHOOK ===');
+    console.log('Dados da consulta:', {
+      idade: consultationData.idade,
+      sexo: consultationData.sexo,
+      temAudio: !!consultationData.audioBlob,
+      duracaoGravacao: consultationData.recordingDuration
     });
-
-    return consultation;
-  } catch (error) {
-    console.error('Erro no sendToWebhook:', error);
-    throw error;
-  }
-};
-
-export const processConsultationAnalysis = async (consultationId: string, consultationData: ConsultationFormData & { audioBlob?: Blob }) => {
-  try {
-    console.log(`Iniciando análise da consulta ${consultationId} via webhook...`);
-
-    // Verificar se análise já foi completada
-    const existingAnalysis = await consultationService.getAiAnalysis(consultationId);
-    if (existingAnalysis && existingAnalysis.processing_status === 'completed') {
-      console.log(`Análise já foi completada para consulta ${consultationId}`);
-      return;
-    }
 
     // Converter áudio para Base64 se disponível
     let audioBase64 = null;
     if (consultationData.audioBlob) {
       console.log('Convertendo áudio para Base64...');
       audioBase64 = await blobToBase64(consultationData.audioBlob);
-      console.log('Áudio convertido para Base64, tamanho:', audioBase64.length);
+      console.log(`Áudio convertido: ${Math.round(audioBase64.length / 1024)}KB`);
     }
 
-    // Mapear tipo de atendimento
-    const tipoAtendimentoMap: Record<string, string> = {
-      'avaliacao': 'Avaliação Médica',
-      'reavaliacao': 'Reavaliação Médica',
-      'complementacao': 'Complementação de Evolução'
-    };
-
-    // Função para tratar campos vazios
-    const formatField = (value: any): string => {
-      if (!value || value === '' || value === null || value === undefined) {
-        return 'Vazio';
-      }
-      if (typeof value === 'object') {
-        // Para campos condicionais como comorbidades, medicações, alergias
-        if (value.tem === 'não' || value.tem === '' || !value.especificar || value.especificar === '') {
-          return 'Vazio';
-        }
-        return value.especificar || 'Vazio';
-      }
-      return String(value);
-    };
-
-    // Preparar dados completos para envio ao webhook
+    // Preparar dados simplificados para envio ao webhook
     const webhookData = {
-      consultationId,
       timestamp: new Date().toISOString(),
-      tipoAtendimento: tipoAtendimentoMap[consultationData.consultationType] || consultationData.consultationType,
-      nomePaciente: formatField(consultationData.nomePaciente),
       
-      // Protocolos
-      protocols: {
-        sepseAdulto: {
-          sirs: consultationData.protocols?.sepseAdulto?.sirs || false,
-          disfuncao: consultationData.protocols?.sepseAdulto?.disfuncao || false,
-          news: consultationData.protocols?.sepseAdulto?.news || false
-        },
-        sepsePediatrica: consultationData.protocols?.sepsePediatrica || false,
-        avc: consultationData.protocols?.avc || false,
-        dorToracica: consultationData.protocols?.dorToracica || false,
-        naoSeAplica: consultationData.protocols?.naoSeAplica || false
-      },
-
-      // Dados clínicos principais
-      hda: formatField(consultationData.hda),
-      comorbidades: formatField(consultationData.comorbidades),
-      medicacoes: formatField(consultationData.medicacoes),
-      alergias: formatField(consultationData.alergias),
-
+      // Dados do paciente
+      idade: consultationData.idade,
+      sexo: consultationData.sexo,
+      
       // Sinais vitais
       sinaisVitais: {
-        pa1: formatField(consultationData.sinaisVitais?.pa1),
-        pa2: formatField(consultationData.sinaisVitais?.pa2),
-        fc: formatField(consultationData.sinaisVitais?.fc),
-        fr: formatField(consultationData.sinaisVitais?.fr),
-        hgt: formatField(consultationData.sinaisVitais?.hgt),
-        temperatura: formatField(consultationData.sinaisVitais?.temperatura),
-        alteracaoConsciencia: formatField(consultationData.sinaisVitais?.alteracaoConsciencia),
-        dor: formatField(consultationData.sinaisVitais?.dor)
+        pa1: consultationData.sinaisVitais?.pa1 || 'Vazio',
+        pa2: consultationData.sinaisVitais?.pa2 || 'Vazio',
+        fc: consultationData.sinaisVitais?.fc || 'Vazio',
+        fr: consultationData.sinaisVitais?.fr || 'Vazio',
+        hgt: consultationData.sinaisVitais?.hgt || 'Vazio',
+        temperatura: consultationData.sinaisVitais?.temperatura || 'Vazio',
+        alteracaoConsciencia: consultationData.sinaisVitais?.alteracaoConsciencia || 'Vazio',
+        dor: consultationData.sinaisVitais?.dor || 'Vazio'
       },
-
-      // Exame físico
-      exameFisico: {
-        estadoGeral: formatField(consultationData.exameFisico?.estadoGeral),
-        respiratorio: formatField(consultationData.exameFisico?.respiratorio),
-        cardiovascular: formatField(consultationData.exameFisico?.cardiovascular),
-        abdome: formatField(consultationData.exameFisico?.abdome),
-        extremidades: formatField(consultationData.exameFisico?.extremidades),
-        nervoso: formatField(consultationData.exameFisico?.nervoso),
-        orofaringe: formatField(consultationData.exameFisico?.orofaringe),
-        otoscopia: formatField(consultationData.exameFisico?.otoscopia)
-      },
-
-      // Avaliação e conduta
-      hipoteseDiagnostica: formatField(consultationData.hipoteseDiagnostica),
-      conduta: formatField(consultationData.conduta),
-      examesComplementares: formatField(consultationData.examesComplementares),
-      reavaliacaoMedica: formatField(consultationData.reavaliacaoMedica),
-      complementoEvolucao: formatField(consultationData.complementoEvolucao),
-
+      
+      // Observações
+      observacoes: consultationData.observacoes || 'Vazio',
+      
       // Áudio em Base64
-      audioBase64: audioBase64
+      audioBase64: audioBase64,
+      recordingDuration: consultationData.recordingDuration
     };
 
-    console.log('Enviando dados completos para webhook:', {
-      ...webhookData,
-      audioBase64: audioBase64 ? `[Base64 String - ${audioBase64.length} chars]` : null
-    });
+    console.log('Enviando dados para webhook... (pode demorar até 2 minutos)');
 
-    // Fazer chamada HTTP real para o webhook
-    const analysisData = await makeWebhookRequest(webhookData);
+    // Fazer chamada HTTP para o webhook e aguardar resposta
+    const webhookResponse = await makeWebhookRequest(webhookData);
 
-    console.log(`Análise da consulta ${consultationId} concluída. Dados recebidos:`, analysisData);
+    console.log('=== RESPOSTA RECEBIDA COM SUCESSO ===');
+    console.log(`Consulta médica gerada: ${webhookResponse.length} caracteres`);
 
-    // Salvar análise da IA na nova tabela
-    await consultationService.saveAiAnalysis(consultationId, analysisData);
-
-    console.log(`Consulta ${consultationId} atualizada com os dados da análise.`);
-
-    // Simular envio do webhook de revisão com o novo formato
-    const reviewWebhookPayload = {
-      id: existingAnalysis?.id || crypto.randomUUID(), // ID específico da análise
-      consultation_id: consultationId
+    // Retornar o texto da consulta médica diretamente
+    return {
+      analysisText: webhookResponse || 'Consulta médica não disponível'
     };
-
-    console.log('Payload do webhook de revisão gerado:', reviewWebhookPayload);
-    // Em produção, este payload seria enviado para o endpoint de revisão
 
   } catch (error) {
-    console.error(`Erro ao processar análise da consulta ${consultationId}:`, error);
-    
-    // Em caso de erro, liberar o lock
-    await consultationService.releaseAnalysisLock(consultationId);
-    
+    console.error('=== ERRO NO ENVIO PARA WEBHOOK ===');
+    console.error('Detalhes do erro:', error);
     throw error;
   }
+};
+
+// Nova função para aguardar os dados da análise estarem disponíveis
+const waitForAnalysisData = async (analysisId: string, maxAttempts = 15, delayMs = 3000): Promise<any> => {
+  console.log(`Aguardando dados da análise ${analysisId} estarem disponíveis...`);
+  
+  // Aguardar um pouco antes de começar o polling para dar tempo do n8n inserir os dados
+  console.log('Aguardando 2 segundos antes de começar a buscar os dados...');
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const analysis = await consultationService.getAiAnalysisById(analysisId);
+      
+      console.log(`Tentativa ${attempt}/${maxAttempts} - Análise recuperada:`, analysis);
+      
+      if (analysis) {
+        // Aceitar análise mesmo que processing_status não seja 'completed'
+        // já que o webhook pode não estar setando esse campo
+        console.log(`Análise ${analysisId} encontrada na tentativa ${attempt}`);
+        console.log('Status de processamento:', analysis.processing_status);
+        console.log('Dados disponíveis:', {
+          hda_ai: !!analysis.hda_ai,
+          comorbidades_ai: !!analysis.comorbidades_ai,
+          medicacoes_ai: !!analysis.medicacoes_ai,
+          alergias_ai: !!analysis.alergias_ai,
+          hipotese_diagnostica_ai: !!analysis.hipotese_diagnostica_ai,
+          conduta_ai: !!analysis.conduta_ai
+        });
+        
+        // Retornar se tiver pelo menos algum dado da IA
+        if (analysis.hda_ai || analysis.comorbidades_ai || analysis.medicacoes_ai || 
+            analysis.alergias_ai || analysis.hipotese_diagnostica_ai || analysis.conduta_ai) {
+          return analysis;
+        }
+      }
+
+      console.log(`Tentativa ${attempt}/${maxAttempts} - Análise ainda não disponível ou sem dados`);
+      
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    } catch (error) {
+      console.error(`Erro ao buscar análise na tentativa ${attempt}:`, error);
+      // Continuar tentando mesmo com erro
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  // Se chegou aqui, tentar uma última vez sem validar o status
+  try {
+    const analysis = await consultationService.getAiAnalysisById(analysisId);
+    if (analysis) {
+      console.warn(`Retornando análise mesmo sem dados completos após ${maxAttempts} tentativas`);
+      return analysis;
+    }
+  } catch (error) {
+    console.error('Erro na tentativa final:', error);
+  }
+
+  throw new Error(`Análise ${analysisId} não ficou disponível após ${maxAttempts} tentativas`);
+};
+
+// Função atualizada para processar resposta do webhook de forma síncrona
+export const processConsultationAnalysis = async (consultationId: string, consultationData: ConsultationFormData & { audioBlob?: Blob; recordingDuration?: number }) => {
+  // Esta função agora é apenas um fallback para compatibilidade
+  console.warn('processConsultationAnalysis chamada - este método está obsoleto, use sendToWebhook');
+  return sendToWebhook(consultationData);
 };
 
 const makeWebhookRequest = async (data: any, retryCount = 0): Promise<any> => {
@@ -179,13 +145,16 @@ const makeWebhookRequest = async (data: any, retryCount = 0): Promise<any> => {
     console.log(`Tentativa ${retryCount + 1} de envio para webhook:`, WEBHOOK_CONFIG.N8N_WEBHOOK_URL);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_CONFIG.TIMEOUT);
+    const timeoutId = setTimeout(() => {
+      console.log('Timeout atingido, abortando requisição...');
+      controller.abort();
+    }, WEBHOOK_CONFIG.TIMEOUT);
 
     const response = await fetch(WEBHOOK_CONFIG.N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Accept': 'text/plain',
         'Origin': window.location.origin,
       },
       body: JSON.stringify(data),
@@ -200,13 +169,28 @@ const makeWebhookRequest = async (data: any, retryCount = 0): Promise<any> => {
       throw new Error(`Webhook retornou status ${response.status}: ${response.statusText}`);
     }
 
-    const responseData = await response.json();
-    console.log('Dados recebidos do webhook:', responseData);
+    // Receber texto diretamente do response body
+    const responseText = await response.text();
+    console.log('Texto recebido do webhook (tamanho):', responseText.length, 'caracteres');
 
-    return responseData;
+    if (!responseText || responseText.trim() === '') {
+      throw new Error('Webhook retornou resposta vazia');
+    }
+
+    return responseText;
 
   } catch (error) {
     console.error(`Erro na tentativa ${retryCount + 1}:`, error);
+
+    let errorMessage = 'Erro desconhecido';
+    
+    if (error.name === 'AbortError') {
+      errorMessage = `Timeout após ${WEBHOOK_CONFIG.TIMEOUT / 1000} segundos - o processamento está demorando mais que o esperado`;
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      errorMessage = 'Erro de conexão com o servidor';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
 
     // Se ainda temos tentativas disponíveis, tentar novamente
     if (retryCount < WEBHOOK_CONFIG.MAX_RETRIES) {
@@ -215,29 +199,8 @@ const makeWebhookRequest = async (data: any, retryCount = 0): Promise<any> => {
       return makeWebhookRequest(data, retryCount + 1);
     }
 
-    // Se esgotaram as tentativas, lançar erro - sem fallback mockup
-    console.error('Todas as tentativas de webhook falharam. Não há dados mockup - funcionalidade real apenas.');
-    throw new Error(`Falha na comunicação com o webhook após ${WEBHOOK_CONFIG.MAX_RETRIES + 1} tentativas: ${error.message}`);
-  }
-};
-
-export const generateFinalDocument = async (finalData: any) => {
-  try {
-    console.log('Calling generate-final-document edge function with data:', finalData);
-
-    const { data, error } = await supabase.functions.invoke('generate-final-document', {
-      body: finalData
-    });
-
-    if (error) {
-      console.error('Error response from generate-final-document:', error);
-      throw new Error(`Error calling edge function: ${error.message}`);
-    }
-
-    console.log('Final document generation result:', data);
-    return data;
-  } catch (error) {
-    console.error('Error in generateFinalDocument:', error);
-    throw error;
+    // Se esgotaram as tentativas, lançar erro detalhado
+    console.error('Todas as tentativas de webhook falharam.');
+    throw new Error(`Falha na comunicação com o webhook: ${errorMessage}`);
   }
 };

@@ -1,9 +1,9 @@
-
 import { useState, useRef, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 
 export const useRecording = () => {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -39,6 +39,7 @@ export const useRecording = () => {
 
       mediaRecorder.start(1000); // Collect data every second
       setIsRecording(true);
+      setIsPaused(false);
       setRecordingTime(0);
 
       recordingIntervalRef.current = setInterval(() => {
@@ -59,6 +60,38 @@ export const useRecording = () => {
     }
   };
 
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && isRecording && !isPaused) {
+      mediaRecorderRef.current.pause();
+      setIsPaused(true);
+      
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+
+      toast({
+        title: "Gravação pausada",
+        description: "A gravação foi pausada. Clique em retomar para continuar.",
+      });
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && isRecording && isPaused) {
+      mediaRecorderRef.current.resume();
+      setIsPaused(false);
+      
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+      toast({
+        title: "Gravação retomada",
+        description: "A gravação foi retomada com sucesso.",
+      });
+    }
+  };
+
   const stopRecording = (): Promise<Blob | null> => {
     return new Promise((resolve) => {
       if (mediaRecorderRef.current && isRecording) {
@@ -70,6 +103,7 @@ export const useRecording = () => {
         
         mediaRecorderRef.current.stop();
         setIsRecording(false);
+        setIsPaused(false);
         
         if (recordingIntervalRef.current) {
           clearInterval(recordingIntervalRef.current);
@@ -108,9 +142,12 @@ export const useRecording = () => {
 
   return {
     isRecording,
+    isPaused,
     recordingTime,
     startRecording,
     stopRecording,
+    pauseRecording,
+    resumeRecording,
     formatTime,
     getAudioBlob
   };
